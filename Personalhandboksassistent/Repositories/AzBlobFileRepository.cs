@@ -28,6 +28,9 @@ namespace Personalhandboksassistent.Repositories
             var connectionString = Environment.GetEnvironmentVariable("AZURE_BLOB_CONNECTION_STRING");
             var containerName = Environment.GetEnvironmentVariable("AZURE_BLOB_CONTAINER_NAME");
 
+            if (string.IsNullOrEmpty(connectionString) || string.IsNullOrEmpty(containerName))
+                throw new ArgumentException("Connection string and/or container name is empty, did you forget to set the environment variables?");
+
             BlobServiceClient blobServiceClient = new BlobServiceClient(connectionString);
             _containerClient = blobServiceClient.GetBlobContainerClient(containerName);
         }
