@@ -23,7 +23,10 @@ public class ChatMessage
     public List<SourceReference> Sources { get; set; } = [];
     public static ChatMessage NotFound(string message) => new()
     {
+        Role = ChatRoles.Assistant,
         Message = message,
         IsFound = false,
     };
 }
+
+public record ChatRequest(string Question = "");
