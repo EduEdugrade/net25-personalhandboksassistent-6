@@ -1,5 +1,4 @@
 using Personalhandboksassistent.File.Models;
-using DotNetEnv;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using System.Runtime.CompilerServices;
@@ -23,8 +22,6 @@ namespace Personalhandboksassistent.Repositories
         /// </summary>
         public AzBlobFileRepository()
         {
-            Env.Load();
-
             var connectionString = Environment.GetEnvironmentVariable("AZURE_BLOB_CONNECTION_STRING");
             var containerName = Environment.GetEnvironmentVariable("AZURE_BLOB_CONTAINER_NAME");
 
