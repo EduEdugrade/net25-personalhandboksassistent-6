@@ -44,25 +44,67 @@ public class IndexerService
         }
     }
 
-    private async Task<List<DocumentChunk>> GetChunksAsync(CancellationToken cancellationToken)
+    public async Task<bool> WaitUntilIndexedAsync(string fileName, int timeoutSeconds, CancellationToken cancellationToken = default)
     {
-        var options = new SearchOptions { Size = 1000 };
-        options.Select.Add("chunk_id");
-        options.Select.Add("title");
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(timeoutSeconds);
+        var nextTrigger = DateTimeOffset.UtcNow;
 
-        var response = await _search.SearchAsync<SearchDocument>("*", options, cancellationToken);
-        var chunks = new List<DocumentChunk>();
-
-        await foreach (var hit in response.Value.GetResultsAsync())
+        while (DateTimeOffset.UtcNow < deadline)
         {
-            chunks.Add(new DocumentChunk
+            var chunks = await GetChunksAsync(cancellationToken);
+
+            if (chunks.Any(chunk => string.Equals(chunk.Title, fileName, StringComparison.OrdinalIgnoreCase)))
             {
-                Id = hit.Document.TryGetValue("chunk_id", out var id) ? id?.ToString() ?? string.Empty : string.Empty,
-                Title = hit.Document.TryGetValue("title", out var title) ? title?.ToString() : null
-            });
+                return true;
+            }
+
+            if (DateTimeOffset.UtcNow >= nextTrigger)
+            {
+                await RunAsync(cancellationToken);
+
+                nextTrigger = DateTimeOffset.UtcNow.AddSeconds(15);
+            }
+
+            await Task.Delay(2000, cancellationToken);
         }
 
-        return chunks;
+        return false;
+    }
+
+    private async Task<List<DocumentChunk>> GetChunksAsync(CancellationToken cancellationToken)
+    {
+        const int pageSize = 1000;
+
+        var chunks = new List<DocumentChunk>();
+        var skip = 0;
+
+        while (true)
+        {
+            var options = new SearchOptions { Size = pageSize, Skip = skip };
+            options.Select.Add("chunk_id");
+            options.Select.Add("title");
+
+            var response = await _search.SearchAsync<SearchDocument>("*", options, cancellationToken);
+            var found = 0;
+
+            await foreach (var hit in response.Value.GetResultsAsync())
+            {
+                found++;
+
+                chunks.Add(new DocumentChunk
+                {
+                    Id = hit.Document.TryGetValue("chunk_id", out var id) ? id?.ToString() ?? string.Empty : string.Empty,
+                    Title = hit.Document.TryGetValue("title", out var title) ? title?.ToString() : null
+                });
+            }
+
+            if (found < pageSize)
+            {
+                return chunks;
+            }
+
+            skip += pageSize;
+        }
     }
 
     public async Task<int> DeleteChunksAsync(string fileName, CancellationToken cancellationToken = default)
