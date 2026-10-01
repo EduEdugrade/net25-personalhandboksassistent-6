@@ -325,6 +325,27 @@ body.admin .main {
     font-size: 14px;
 }
 
+.chat-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 1em;
+    border-bottom: 1px solid var(--border);
+}
+
+.clearHistory {
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+
+    background: white;
+    color: #454952;
+
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
 .received {
     background: #f3f4f7;
     align-self: flex-start;
@@ -390,10 +411,6 @@ body.admin .main {
 .submitButton:hover {
     background: var(--primary-dark);
     transform: translateY(-1px);
-}
-
-.send-icon {
-    font-size: 12px;
 }
 
 ::-webkit-scrollbar {

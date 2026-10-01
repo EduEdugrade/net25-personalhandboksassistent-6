@@ -2,9 +2,9 @@ const userQuestion = document.querySelector(".userQuestion");
 const submitButton = document.querySelector(".submitButton");
 const chatBox = document.getElementById('chat-box');
 const logoutButton = document.querySelector(".logout-button");
-const deleteDocumentButton = document.querySelector(".delete-document");
 const addDocumentButton = document.querySelector(".add-document");
 const documents = document.querySelector(".documents");
+const clearHistoryButton = document.querySelector(".clearHistory");
 
 const isAdmin = true; // "false" gömmer vänstra dokument panelen
 
@@ -14,15 +14,37 @@ if (isAdmin) {
 
 submitButton.addEventListener("click", () => {
     getAiResponse(userQuestion.value);
-    //sendMessage(userQuestion.value, "Hej jag är ai"); //Ersätt till denna om du vill testa skicka meddelanden
 });
 
 logoutButton.addEventListener("click", () => {
     //Todo: Skicka tillbaka användaren till loginsidan
 });
 
-deleteDocumentButton.addEventListener("click", () => {
-    //Todo: anropa deletedocument funktionen med ett id
+clearHistoryButton.addEventListener("click", async () => {
+    try {
+        const response = await fetch("/api/history", {
+            method: "DELETE"
+        });
+
+        if (!response.ok) {
+            throw new Error("Kunde inte rensa chatthistoriken.");
+        }
+
+        const data = await response.json();
+        
+        chatBox.innerHTML = `
+            <div class="welcome-message">
+                <h2>Hej! Hur kan jag hjälpa dig?</h2>
+                <p>
+                    Jag kan svara på frågor utifrån dokumenten
+                    i personalhandboken.
+                </p>
+            </div>
+        `;
+        console.log(data.message);
+    } catch (error) {
+        console.error("Fel vid rensning av historik:", error);
+    }
 });
 
 addDocumentButton.addEventListener("click", () => {
@@ -42,7 +64,7 @@ async function addDocument(file) {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("api/addFile", {
+        const response = await fetch("/api/addFile", {
             method: "POST",
             body: formData
         });
@@ -52,17 +74,42 @@ async function addDocument(file) {
         const data = await response.json();
         console.log("Uppladdning lyckades!", data);
 
+        await loadDocuments();
     } catch (error) {
         console.error("Fel vid tillägg av dokument:", error);
     }
 }
 
-async function deleteDocument() {
-    //Todo: fetch till api/delete
+async function deleteDocument(id) {
+    try {
+        const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
+            method: "DELETE"
+        });
+
+        if (!response.ok) throw new Error(`Fel: ${response.status}`);
+        
+        const result = await response.json();
+
+        console.log("Dokument raderat:", result);
+        loadDocuments();
+    } catch (error) {
+        console.error("Kunde inte radera dokumentet: ", error);
+    }
 }
 
 async function loadDocuments() {
-    //Todo: Då sidan laddas in så ska man fetcha dokumenten från blobstorage? vene
+    try {
+        const response = await fetch("/api/documents");
+
+        if (!response.ok) {
+            throw new Error("Kunde inte hämta dokumenten");
+        }
+
+        const documents = await response.json();
+        renderDocuments(documents);
+    } catch (error) {
+        console.error("Kunde inte ladda dokumenten: ", error);
+    }
 }
 
 async function getAiResponse(question) {
@@ -79,7 +126,6 @@ async function getAiResponse(question) {
 
         const data = await response.json();
         sendMessage(question, data.answer);
-
     } catch (error) {
         console.error("Fetch-fel:", error);
     }
@@ -102,3 +148,41 @@ function sendMessage(question, aiAnswer) {
 
     userQuestion.value = '';
 }
+
+function renderDocuments(documentList) {
+    documents.innerHTML = "";
+
+    documentList.forEach(documentItem => {
+        const documentElement = document.createElement("div");
+        documentElement.classList.add("document");
+
+        documentElement.innerHTML = `
+            <div class="document-icon">📄</div>
+
+            <div class="document-info">
+                <span class="document-name"></span>
+                <span class="document-meta"></span>
+            </div>
+
+            <button 
+                class="delete-document" 
+                type="button"
+                title="Ta bort dokument">
+                x
+            </button>
+        `;
+
+        documentElement.querySelector(".document-name").textContent = documentItem.name;
+
+        documentElement.querySelector(".document-meta").textContent = documentItem.type;
+
+        documentElement.querySelector(".delete-document")
+            .addEventListener("click", () => {
+                deleteDocument(documentItem.name);
+            });
+
+        documents.appendChild(documentElement);
+    })
+}
+
+loadDocuments();
