@@ -49,6 +49,11 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
             return ChatMessage.NotFound("Jag svarar bara på personalrelaterade frågor.");
         }
 
+        if (reply.Length == 0)
+        {
+            return ChatMessage.NotFound("Jag kunde inte skapa ett svar just nu. Försök igen.");
+        }
+
         return new ChatMessage
         {
             Role = ChatRoles.Assistant,
