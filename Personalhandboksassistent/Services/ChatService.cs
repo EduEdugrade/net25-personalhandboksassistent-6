@@ -21,6 +21,8 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
 
     public Task ClearAsync(string user, CancellationToken cancellationToken = default) => chats.ClearAsync(user, cancellationToken);
 
+    public Task<Chat> GetHistoryAsync(string user, CancellationToken cancellationToken = default) => chats.GetAsync(user, cancellationToken);
+
     private async Task<ChatMessage> AskAsync(string question, List<ChatMessage> history, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(question))
