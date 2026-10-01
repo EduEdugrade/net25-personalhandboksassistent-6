@@ -6,6 +6,13 @@
 # dotenv files
 .env
 
+# Chatthistorik - andras vid varje fraga, ska inte versionshanteras
+[Dd]ata/
+
+# Loggfiler fran lokal korning
+app-log.txt
+app-err.txt
+
 # User-specific files
 *.rsuser
 *.suo
