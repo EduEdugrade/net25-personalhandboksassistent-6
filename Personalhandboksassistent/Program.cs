@@ -14,6 +14,8 @@ builder.Services.AddSingleton<IFileRepository, AzBlobFileRepository>();
 
 var app = builder.Build();
 
+_ = app.Services.GetRequiredService<IFileRepository>();
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
