@@ -101,3 +101,5 @@ function sendMessage(question, aiAnswer) {
 
     userQuestion.value = '';
 }
+
+loadDocuments();
