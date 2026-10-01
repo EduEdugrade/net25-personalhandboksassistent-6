@@ -14,7 +14,7 @@ if (isAdmin) {
 
 submitButton.addEventListener("click", () => {
     getAiResponse(userQuestion.value);
-    //sendMessage(userQuestion.value, "Hej jag är ai") //Ersätt till denna om du vill testa skicka meddelanden
+    //sendMessage(userQuestion.value, "Hej jag är ai"); //Ersätt till denna om du vill testa skicka meddelanden
 });
 
 logoutButton.addEventListener("click", () => {
