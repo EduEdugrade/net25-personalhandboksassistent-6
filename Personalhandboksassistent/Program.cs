@@ -23,22 +23,6 @@ _ = app.Services.GetRequiredService<IFileRepository>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/api/search", async (string question, SearchService search) =>
-{
-    var chunks = await search.SearchAsync(question);
-
-    return Results.Ok(chunks.Select(chunk => new
-    {
-        chunk.Id,
-        chunk.Title,
-        chunk.DocumentId,
-        chunk.Score,
-        Text = chunk.Content.Length > 300 ? chunk.Content[..300] + "..." : chunk.Content
-    }));
-});
-
-app.MapGet("/testFile", (IFileRepository fileRepo) => fileRepo.ListAsync(""));
-
 app.MapGet("/api/documents", async (DocumentService documents) =>
     Results.Ok(await documents.ListAsync()));
 
@@ -70,7 +54,7 @@ app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentServi
     return Results.Ok(new { name = fileName, chunksRemoved });
 });
 
-app.MapPost("/api/documents/cleanup", async (DocumentService documents) =>
+app.MapPost("/api/index/cleanup", async (DocumentService documents) =>
     Results.Ok(new { removedChunks = await documents.CleanOrphansAsync() }));
 
 app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat) =>
@@ -84,6 +68,8 @@ app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat) =>
         reply.Sources
     });
 });
+
+app.MapGet("/api/history", async (ChatService chat) => Results.Ok(await chat.GetHistoryAsync("User")));
 
 app.MapDelete("/api/history", async (ChatService chat) =>
 {
