@@ -21,6 +21,7 @@ public class AnswerService
 
     private readonly ResponsesClient _client;
     private readonly string _deployment;
+    private readonly int _maxOutputTokens;
 
     public AnswerService()
     {
@@ -31,6 +32,7 @@ public class AnswerService
 
         _deployment = Environment.GetEnvironmentVariable("OPENAI_DEPLOYMENT")
             ?? throw new InvalidOperationException("OPENAI_DEPLOYMENT saknas i .env");
+        _maxOutputTokens = int.TryParse(Environment.GetEnvironmentVariable("OPENAI_MAX_OUTPUT_TOKENS"), out var maximum) ? maximum : 4000;
 
         _client = new ResponsesClient(
             new ApiKeyCredential(key),
@@ -50,11 +52,12 @@ public class AnswerService
             ResponseItem.CreateUserMessageItem($"{historySummary}FRÅGA: {question}\n\nKONTEXT:\n{context}")
         ])
         {
-            Instructions = Instructions
+            Instructions = Instructions,
+            MaxOutputTokenCount = _maxOutputTokens
         };
 
         var response = await _client.CreateResponseAsync(options, cancellationToken);
 
-        return response.Value.GetOutputText().Trim();
+        return (response.Value.GetOutputText() ?? string.Empty).Trim();
     }
 }

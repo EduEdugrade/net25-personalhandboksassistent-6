@@ -18,35 +18,28 @@ builder.Services.AddSingleton<IChatRepository, ChatRepository>();
 
 var app = builder.Build();
 
-_ = app.Services.GetRequiredService<IFileRepository>();
+_ = app.Services.GetRequiredService<ChatService>();
+_ = app.Services.GetRequiredService<DocumentService>();
+
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    context.Response.ContentType = "application/json";
+
+    await context.Response.WriteAsJsonAsync(new { message = "Något gick fel på servern." });
+}));
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/api/search", async (string question, SearchService search) =>
-{
-    var chunks = await search.SearchAsync(question);
+app.MapGet("/api/documents", async (DocumentService documents, HttpContext context) =>
+    Results.Ok(await documents.ListAsync(context.RequestAborted)));
 
-    return Results.Ok(chunks.Select(chunk => new
-    {
-        chunk.Id,
-        chunk.Title,
-        chunk.DocumentId,
-        chunk.Score,
-        Text = chunk.Content.Length > 300 ? chunk.Content[..300] + "..." : chunk.Content
-    }));
-});
-
-app.MapGet("/testFile", (IFileRepository fileRepo) => fileRepo.ListAsync(""));
-
-app.MapGet("/api/documents", async (DocumentService documents) =>
-    Results.Ok(await documents.ListAsync()));
-
-app.MapGet("/api/documents/{fileName}", async (string fileName, IFileRepository files) =>
+app.MapGet("/api/documents/{fileName}", async (string fileName, IFileRepository files, HttpContext context) =>
 {
     try
     {
-        var file = await files.GetAsync(fileName);
+        var file = await files.GetAsync(fileName, context.RequestAborted);
 
         return Results.File(file.Content, file.ContentType, enableRangeProcessing: true);
     }
@@ -56,26 +49,36 @@ app.MapGet("/api/documents/{fileName}", async (string fileName, IFileRepository 
     }
 });
 
-app.MapPost("/api/addFile", async (IFormFile file, DocumentService documents) =>
+app.MapPost("/api/addFile", async (IFormFile file, DocumentService documents, HttpContext context) =>
 {
-    var oldChunks = await documents.UploadAsync(file.FileName, file.OpenReadStream(), file.ContentType);
+    if (!DocumentRules.IsAllowed(file.FileName))
+    {
+        return Results.BadRequest(new { message = $"Filtypen stöds inte. Tillåtna typer: {DocumentRules.AllowedList}." });
+    }
 
-    return Results.Ok(new { name = file.FileName, oldChunksRemoved = oldChunks });
+    if (file.Length > DocumentRules.MaxBytes)
+    {
+        return Results.BadRequest(new { message = $"Filen är för stor. Max {DocumentRules.MaxMegabytes} MB." });
+    }
+
+    var result = await documents.UploadAsync(file.FileName, file.OpenReadStream(), file.ContentType, context.RequestAborted);
+
+    return Results.Ok(new { name = file.FileName, oldChunksRemoved = result.OldChunksRemoved, indexed = result.Indexed });
 }).DisableAntiforgery();
 
-app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentService documents) =>
+app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentService documents, HttpContext context) =>
 {
-    var chunksRemoved = await documents.DeleteAsync(fileName);
+    var chunksRemoved = await documents.DeleteAsync(fileName, context.RequestAborted);
 
     return Results.Ok(new { name = fileName, chunksRemoved });
 });
 
-app.MapPost("/api/documents/cleanup", async (DocumentService documents) =>
-    Results.Ok(new { removedChunks = await documents.CleanOrphansAsync() }));
+app.MapPost("/api/index/cleanup", async (DocumentService documents, HttpContext context) =>
+    Results.Ok(new { removedChunks = await documents.CleanOrphansAsync(context.RequestAborted) }));
 
-app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat) =>
+app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat, HttpContext context) =>
 {
-    var reply = await chat.AskAsync("User", request.Message);
+    var reply = await chat.AskAsync("User", request.Message, context.RequestAborted);
 
     return Results.Ok(new
     {
@@ -85,9 +88,12 @@ app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat) =>
     });
 });
 
-app.MapDelete("/api/history", async (ChatService chat) =>
+app.MapGet("/api/history", async (ChatService chat, HttpContext context) =>
+    Results.Ok(await chat.GetHistoryAsync("User", context.RequestAborted)));
+
+app.MapDelete("/api/history", async (ChatService chat, HttpContext context) =>
 {
-    await chat.ClearAsync("User");
+    await chat.ClearAsync("User", context.RequestAborted);
 
     return Results.Ok(new { message = "Chatthistoriken är rensad." });
 });

@@ -21,6 +21,8 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
 
     public Task ClearAsync(string user, CancellationToken cancellationToken = default) => chats.ClearAsync(user, cancellationToken);
 
+    public Task<Chat> GetHistoryAsync(string user, CancellationToken cancellationToken = default) => chats.GetAsync(user, cancellationToken);
+
     private async Task<ChatMessage> AskAsync(string question, List<ChatMessage> history, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(question))
@@ -45,6 +47,11 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
         if (reply.StartsWith("UTANFOR", StringComparison.OrdinalIgnoreCase))
         {
             return ChatMessage.NotFound("Jag svarar bara på personalrelaterade frågor.");
+        }
+
+        if (reply.Length == 0)
+        {
+            return ChatMessage.NotFound("Jag kunde inte skapa ett svar just nu. Försök igen.");
         }
 
         return new ChatMessage
