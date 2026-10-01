@@ -1,3 +1,4 @@
+using Azure;
 using DotNetEnv;
 using Personalhandboksassistent.Repositories;
 using Personalhandboksassistent.Services;
@@ -57,11 +58,16 @@ app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentServi
 app.MapPost("/api/documents/cleanup", async (DocumentService documents) =>
     Results.Ok(new { removedChunks = await documents.CleanOrphansAsync() }));
 
-app.MapPost("/api/chat", async (ChatRequest request, ChatService chat) =>
+app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat) =>
 {
-    var reply = await chat.AskAsync(request.Question);
+    var reply = await chat.AskAsync("User", request.Message);
 
-    return Results.Ok(reply);
+    return Results.Ok(new
+    {
+        answer = reply.Message,
+        reply.IsFound,
+        reply.Sources
+    });
 });
 
 app.Run();
