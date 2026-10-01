@@ -67,19 +67,18 @@ async function loadDocuments() {
 
 async function getAiResponse(question) {
     try {
-        const response = await fetch("/api/answer", {
+        const response = await fetch("/api/chat", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                message: question
+                question: question
             })
         });
 
         const data = await response.json();
-        sendMessage(question, data.answer);
-
+        sendMessage(question, data.message);
     } catch (error) {
         console.error("Fetch-fel:", error);
     }
