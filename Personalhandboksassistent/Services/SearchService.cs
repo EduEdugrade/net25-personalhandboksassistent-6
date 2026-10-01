@@ -1,3 +1,4 @@
+using System.Globalization;
 using Azure;
 using Azure.Search.Documents;
 using Azure.Search.Documents.Models;
@@ -10,6 +11,7 @@ public class SearchService
     private readonly SearchClient _client;
     private readonly string _semanticConfig;
     private readonly int _topK;
+    private readonly double _minRerankerScore;
 
     public SearchService()
     {
@@ -23,6 +25,7 @@ public class SearchService
         _semanticConfig = Environment.GetEnvironmentVariable("AZURE_SEARCH_SEMANTIC_CONFIG")
             ?? throw new InvalidOperationException("AZURE_SEARCH_SEMANTIC_CONFIG saknas i .env");
         _topK = int.TryParse(Environment.GetEnvironmentVariable("SEARCH_TOP_K"), out var topK) ? topK : 5;
+        _minRerankerScore = double.TryParse(Environment.GetEnvironmentVariable("RAG_MIN_RERANKER_SCORE"), NumberStyles.Float, CultureInfo.InvariantCulture, out var minimum) ? minimum : 1.0;
 
         _client = new SearchClient(new Uri(endpoint), index, new AzureKeyCredential(key));
     }
@@ -62,6 +65,13 @@ public class SearchService
 
         await foreach (var hit in response.Value.GetResultsAsync())
         {
+            var rerankerScore = hit.SemanticSearch?.RerankerScore;
+
+            if (rerankerScore is null || rerankerScore < _minRerankerScore)
+            {
+                continue;
+            }
+
             chunks.Add(new DocumentChunk
             {
                 Id = Field(hit.Document, "chunk_id"),
@@ -69,7 +79,8 @@ public class SearchService
                 Title = Field(hit.Document, "title"),
                 Content = Field(hit.Document, "chunk"),
                 ChunkIndex = position++,
-                Score = hit.Score
+                Score = hit.Score,
+                RerankerScore = rerankerScore
             });
         }
 
