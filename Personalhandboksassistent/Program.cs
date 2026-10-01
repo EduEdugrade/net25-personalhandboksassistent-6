@@ -14,6 +14,7 @@ builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<IndexerService>();
 builder.Services.AddSingleton<DocumentService>();
 builder.Services.AddSingleton<IFileRepository, AzBlobFileRepository>();
+builder.Services.AddSingleton<IChatRepository, ChatRepository>();
 
 var app = builder.Build();
 
@@ -68,6 +69,13 @@ app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat) =>
         reply.IsFound,
         reply.Sources
     });
+});
+
+app.MapDelete("/api/history", async (ChatService chat) =>
+{
+    await chat.ClearAsync("User");
+
+    return Results.Ok(new { message = "Chatthistoriken är rensad." });
 });
 
 app.Run();
