@@ -9,4 +9,5 @@ public sealed class DocumentChunk
     public int ChunkIndex { get; set; }
     public int? PageNumber { get; set; }
     public double? Score { get; set; }
+    public double? RerankerScore { get; set; }
 }
