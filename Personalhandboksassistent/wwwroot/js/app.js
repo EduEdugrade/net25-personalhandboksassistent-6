@@ -36,7 +36,7 @@ async function addDocument(file) {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("api/addFile", {
+        const response = await fetch("/api/addFile", {
             method: "POST",
             body: formData
         });
@@ -53,7 +53,20 @@ async function addDocument(file) {
 }
 
 async function deleteDocument(id) {
-    //Todo: fetch till api/delete
+    try {
+        const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
+            method: "DELETE"
+        });
+
+        if (!response.ok) throw new Error(`Fel: ${response.status}`);
+        
+        const result = await response.json();
+
+        console.log("Dokument raderat:", result);
+        loadDocuments();
+    } catch (error) {
+        console.error("Kunde inte radera dokumentet: ", error);
+    }
 }
 
 async function loadDocuments() {
@@ -67,24 +80,24 @@ async function loadDocuments() {
         const documents = await response.json();
         renderDocuments(documents);
     } catch (error) {
-        console.error("Kunde inte ladda dokumenten:", error);
+        console.error("Kunde inte ladda dokumenten: ", error);
     }
 }
 
 async function getAiResponse(question) {
     try {
-        const response = await fetch("/api/chat", {
+        const response = await fetch("/api/answer", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                question: question
+                message: question
             })
         });
 
         const data = await response.json();
-        sendMessage(question, data.message);
+        sendMessage(question, data.answer);
     } catch (error) {
         console.error("Fetch-fel:", error);
     }
@@ -137,7 +150,7 @@ function renderDocuments(documentList) {
 
         documentElement.querySelector(".delete-document")
             .addEventListener("click", () => {
-                deleteDocument(documentItem.id);
+                deleteDocument(documentItem.name);
             });
 
         documents.appendChild(documentElement);
