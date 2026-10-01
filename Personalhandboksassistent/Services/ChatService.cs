@@ -1,10 +1,27 @@
 using Personalhandboksassistent.Models;
+using Personalhandboksassistent.Repositories;
 
 namespace Personalhandboksassistent.Services;
 
-public class ChatService(SearchService search, AnswerService answer)
+public class ChatService(SearchService search, AnswerService answer, IChatRepository chats)
 {
-    public async Task<ChatMessage> AskAsync(string question, CancellationToken cancellationToken = default)
+    public async Task<ChatMessage> AskAsync(string user, string question, CancellationToken cancellationToken = default)
+    {
+        var chat = await chats.GetAsync(user, cancellationToken);
+        var reply = await AskAsync(question, chat.Messages, cancellationToken);
+
+        chat.Messages.Add(new ChatMessage { Role = ChatRoles.User, Message = question });
+        chat.Messages.Add(reply);
+        chat.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await chats.SaveAsync(user, chat, cancellationToken);
+
+        return reply;
+    }
+
+    public Task ClearAsync(string user, CancellationToken cancellationToken = default) => chats.ClearAsync(user, cancellationToken);
+
+    private async Task<ChatMessage> AskAsync(string question, List<ChatMessage> history, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(question))
         {
@@ -18,7 +35,7 @@ public class ChatService(SearchService search, AnswerService answer)
             return ChatMessage.NotFound("Jag hittar inte det här i personalhandboken. Kontakta HR om du är osäker.");
         }
 
-        var reply = await answer.AnswerAsync(question, chunks, cancellationToken);
+        var reply = await answer.AnswerAsync(question, chunks, history, cancellationToken);
 
         if (reply.StartsWith("SAKNAS", StringComparison.OrdinalIgnoreCase))
         {

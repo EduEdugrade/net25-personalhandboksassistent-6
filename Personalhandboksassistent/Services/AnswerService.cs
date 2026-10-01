@@ -37,13 +37,17 @@ public class AnswerService
             new ResponsesClientOptions { Endpoint = new Uri(endpoint) });
     }
 
-    public async Task<string> AnswerAsync(string question, List<DocumentChunk> chunks, CancellationToken cancellationToken = default)
+    public async Task<string> AnswerAsync(string question, List<DocumentChunk> chunks, List<ChatMessage> history, CancellationToken cancellationToken = default)
     {
         var context = string.Join("\n\n", chunks.Select((chunk, index) => $"[{index + 1}] {chunk.Title}\n{chunk.Content}"));
 
+        var historySummary = history.Count == 0
+            ? string.Empty
+            : "TIDIGARE KONVERSATION:\n" + string.Join("\n", history.Select(message => $"{message.Role}: {message.Message}")) + "\n\n";
+
         var options = new CreateResponseOptions(_deployment,
         [
-            ResponseItem.CreateUserMessageItem($"FRÅGA: {question}\n\nKONTEXT:\n{context}")
+            ResponseItem.CreateUserMessageItem($"{historySummary}FRÅGA: {question}\n\nKONTEXT:\n{context}")
         ])
         {
             Instructions = Instructions
