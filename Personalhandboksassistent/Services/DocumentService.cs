@@ -23,7 +23,7 @@ public class DocumentService(IFileRepository files, IndexerService indexer)
         return documents.OrderBy(document => document.Name).ToList();
     }
 
-    public async Task<int> UploadAsync(string fileName, Stream content, string contentType, CancellationToken cancellationToken = default)
+    public async Task<UploadResult> UploadAsync(string fileName, Stream content, string contentType, CancellationToken cancellationToken = default)
     {
         await files.UploadAsync(fileName, content, contentType, cancellationToken);
 
@@ -31,7 +31,10 @@ public class DocumentService(IFileRepository files, IndexerService indexer)
 
         await indexer.RunAsync(cancellationToken);
 
-        return removed;
+        var timeout = int.TryParse(Environment.GetEnvironmentVariable("INDEXER_WAIT_TIMEOUT_SECONDS"), out var seconds) ? seconds : 90;
+        var indexed = await indexer.WaitUntilIndexedAsync(fileName, timeout, cancellationToken);
+
+        return new UploadResult(removed, indexed);
     }
 
     public async Task<int> DeleteAsync(string fileName, CancellationToken cancellationToken = default)
@@ -48,3 +51,5 @@ public class DocumentService(IFileRepository files, IndexerService indexer)
         return await indexer.CleanOrphansAsync(filesInContainer, cancellationToken);
     }
 }
+
+public record UploadResult(int OldChunksRemoved, bool Indexed);
