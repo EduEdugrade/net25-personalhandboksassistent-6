@@ -1,3 +1,4 @@
+using Azure;
 using DotNetEnv;
 using Personalhandboksassistent.Repositories;
 using Personalhandboksassistent.Services;
@@ -13,6 +14,7 @@ builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<IndexerService>();
 builder.Services.AddSingleton<DocumentService>();
 builder.Services.AddSingleton<IFileRepository, AzBlobFileRepository>();
+builder.Services.AddSingleton<IChatRepository, ChatRepository>();
 
 var app = builder.Build();
 
@@ -40,6 +42,20 @@ app.MapGet("/testFile", (IFileRepository fileRepo) => fileRepo.ListAsync(""));
 app.MapGet("/api/documents", async (DocumentService documents) =>
     Results.Ok(await documents.ListAsync()));
 
+app.MapGet("/api/documents/{fileName}", async (string fileName, IFileRepository files) =>
+{
+    try
+    {
+        var file = await files.GetAsync(fileName);
+
+        return Results.File(file.Content, file.ContentType, enableRangeProcessing: true);
+    }
+    catch (RequestFailedException ex) when (ex.Status == 404)
+    {
+        return Results.NotFound(new { message = "Dokumentet finns inte." });
+    }
+});
+
 app.MapPost("/api/addFile", async (IFormFile file, DocumentService documents) =>
 {
     var oldChunks = await documents.UploadAsync(file.FileName, file.OpenReadStream(), file.ContentType);
@@ -57,11 +73,23 @@ app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentServi
 app.MapPost("/api/documents/cleanup", async (DocumentService documents) =>
     Results.Ok(new { removedChunks = await documents.CleanOrphansAsync() }));
 
-app.MapPost("/api/chat", async (ChatRequest request, ChatService chat) =>
+app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat) =>
 {
-    var reply = await chat.AskAsync(request.Question);
+    var reply = await chat.AskAsync("User", request.Message);
 
-    return Results.Ok(reply);
+    return Results.Ok(new
+    {
+        answer = reply.Message,
+        reply.IsFound,
+        reply.Sources
+    });
+});
+
+app.MapDelete("/api/history", async (ChatService chat) =>
+{
+    await chat.ClearAsync("User");
+
+    return Results.Ok(new { message = "Chatthistoriken är rensad." });
 });
 
 app.Run();
