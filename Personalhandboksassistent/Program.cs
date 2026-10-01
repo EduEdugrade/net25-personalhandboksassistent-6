@@ -10,6 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<SearchService>();
 builder.Services.AddSingleton<AnswerService>();
 builder.Services.AddSingleton<ChatService>();
+builder.Services.AddSingleton<IndexerService>();
+builder.Services.AddSingleton<DocumentService>();
 builder.Services.AddSingleton<IFileRepository, AzBlobFileRepository>();
 
 var app = builder.Build();
@@ -34,6 +36,26 @@ app.MapGet("/api/search", async (string question, SearchService search) =>
 });
 
 app.MapGet("/testFile", (IFileRepository fileRepo) => fileRepo.ListAsync(""));
+
+app.MapGet("/api/documents", async (DocumentService documents) =>
+    Results.Ok(await documents.ListAsync()));
+
+app.MapPost("/api/addFile", async (IFormFile file, DocumentService documents) =>
+{
+    var oldChunks = await documents.UploadAsync(file.FileName, file.OpenReadStream(), file.ContentType);
+
+    return Results.Ok(new { name = file.FileName, oldChunksRemoved = oldChunks });
+}).DisableAntiforgery();
+
+app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentService documents) =>
+{
+    var chunksRemoved = await documents.DeleteAsync(fileName);
+
+    return Results.Ok(new { name = fileName, chunksRemoved });
+});
+
+app.MapPost("/api/documents/cleanup", async (DocumentService documents) =>
+    Results.Ok(new { removedChunks = await documents.CleanOrphansAsync() }));
 
 app.MapPost("/api/chat", async (ChatRequest request, ChatService chat) =>
 {

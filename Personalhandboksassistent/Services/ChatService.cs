@@ -2,17 +2,8 @@ using Personalhandboksassistent.Models;
 
 namespace Personalhandboksassistent.Services;
 
-public class ChatService
+public class ChatService(SearchService search, AnswerService answer)
 {
-    private readonly SearchService _search;
-    private readonly AnswerService _answer;
-
-    public ChatService(SearchService search, AnswerService answer)
-    {
-        _search = search;
-        _answer = answer;
-    }
-
     public async Task<ChatMessage> AskAsync(string question, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(question))
@@ -20,21 +11,21 @@ public class ChatService
             return ChatMessage.NotFound("Skriv en fråga om personalhandboken.");
         }
 
-        var chunks = await _search.SearchAsync(question, cancellationToken);
+        var chunks = await search.SearchAsync(question, cancellationToken);
 
         if (chunks.Count == 0)
         {
             return ChatMessage.NotFound("Jag hittar inte det här i personalhandboken. Kontakta HR om du är osäker.");
         }
 
-        var answer = await _answer.AnswerAsync(question, chunks, cancellationToken);
+        var reply = await answer.AnswerAsync(question, chunks, cancellationToken);
 
-        if (answer.StartsWith("SAKNAS", StringComparison.OrdinalIgnoreCase))
+        if (reply.StartsWith("SAKNAS", StringComparison.OrdinalIgnoreCase))
         {
             return ChatMessage.NotFound("Jag hittar inte det här i personalhandboken. Kontakta HR om du är osäker.");
         }
 
-        if (answer.StartsWith("UTANFOR", StringComparison.OrdinalIgnoreCase))
+        if (reply.StartsWith("UTANFOR", StringComparison.OrdinalIgnoreCase))
         {
             return ChatMessage.NotFound("Jag svarar bara på personalrelaterade frågor.");
         }
@@ -42,7 +33,7 @@ public class ChatService
         return new ChatMessage
         {
             Role = ChatRoles.Assistant,
-            Message = answer,
+            Message = reply,
             IsFound = true,
             Sources = BuildSources(chunks)
         };
