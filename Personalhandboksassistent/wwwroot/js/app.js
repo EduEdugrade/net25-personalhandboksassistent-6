@@ -2,7 +2,6 @@ const userQuestion = document.querySelector(".userQuestion");
 const submitButton = document.querySelector(".submitButton");
 const chatBox = document.getElementById('chat-box');
 const logoutButton = document.querySelector(".logout-button");
-const deleteDocumentButton = document.querySelector(".delete-document");
 const addDocumentButton = document.querySelector(".add-document");
 const documents = document.querySelector(".documents");
 
@@ -14,15 +13,10 @@ if (isAdmin) {
 
 submitButton.addEventListener("click", () => {
     getAiResponse(userQuestion.value);
-    //sendMessage(userQuestion.value, "Hej jag är ai"); //Ersätt till denna om du vill testa skicka meddelanden
 });
 
 logoutButton.addEventListener("click", () => {
     //Todo: Skicka tillbaka användaren till loginsidan
-});
-
-deleteDocumentButton.addEventListener("click", () => {
-    //Todo: anropa deletedocument funktionen med ett id
 });
 
 addDocumentButton.addEventListener("click", () => {
@@ -52,17 +46,29 @@ async function addDocument(file) {
         const data = await response.json();
         console.log("Uppladdning lyckades!", data);
 
+        await loadDocuments();
     } catch (error) {
         console.error("Fel vid tillägg av dokument:", error);
     }
 }
 
-async function deleteDocument() {
+async function deleteDocument(id) {
     //Todo: fetch till api/delete
 }
 
 async function loadDocuments() {
-    //Todo: Då sidan laddas in så ska man fetcha dokumenten från blobstorage? vene
+    try {
+        const response = await fetch("/api/documents");
+
+        if (!response.ok) {
+            throw new Error("Kunde inte hämta dokumenten");
+        }
+
+        const documents = await response.json();
+        renderDocuments(documents);
+    } catch (error) {
+        console.error("Kunde inte ladda dokumenten:", error);
+    }
 }
 
 async function getAiResponse(question) {
@@ -100,6 +106,42 @@ function sendMessage(question, aiAnswer) {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     userQuestion.value = '';
+}
+
+function renderDocuments(documentList) {
+    documents.innerHTML = "";
+
+    documentList.forEach(documentItem => {
+        const documentElement = document.createElement("div");
+        documentElement.classList.add("document");
+
+        documentElement.innerHTML = `
+            <div class="document-icon">📄</div>
+
+            <div class="document-info">
+                <span class="document-name"></span>
+                <span class="document-meta"></span>
+            </div>
+
+            <button 
+                class="delete-document" 
+                type="button"
+                title="Ta bort dokument">
+                x
+            </button>
+        `;
+
+        documentElement.querySelector(".document-name").textContent = documentItem.name;
+
+        documentElement.querySelector(".document-meta").textContent = documentItem.type;
+
+        documentElement.querySelector(".delete-document")
+            .addEventListener("click", () => {
+                deleteDocument(documentItem.id);
+            });
+
+        documents.appendChild(documentElement);
+    })
 }
 
 loadDocuments();
