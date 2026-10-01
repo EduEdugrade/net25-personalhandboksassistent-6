@@ -3,10 +3,36 @@ using DotNetEnv;
 using Personalhandboksassistent.Repositories;
 using Personalhandboksassistent.Services;
 using Personalhandboksassistent.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
 
 Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenApi();
+
+var jwt = builder.Configuration.GetSection("Jwt");
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwt["Issuer"],
+            ValidAudience = jwt["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!)),
+            ClockSkew = TimeSpan.FromSeconds(30),
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddSingleton<SearchService>();
 builder.Services.AddSingleton<AnswerService>();
@@ -15,6 +41,7 @@ builder.Services.AddSingleton<IndexerService>();
 builder.Services.AddSingleton<DocumentService>();
 builder.Services.AddSingleton<IFileRepository, AzBlobFileRepository>();
 builder.Services.AddSingleton<IChatRepository, ChatRepository>();
+builder.Services.AddSingleton<JwtTokenService>();
 
 var app = builder.Build();
 
@@ -29,8 +56,35 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     await context.Response.WriteAsJsonAsync(new { message = "Något gick fel på servern." });
 }));
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.MapOpenApi();
+
+var users = new List<AppUser>{
+    new("1", "admin", BCrypt.Net.BCrypt.HashPassword("admin-pw"), "admin"),
+    new("2", "user", BCrypt.Net.BCrypt.HashPassword("user-pw"), "user"),
+};
+
+app.MapPost("/login", (LoginRequest req, JwtTokenService tokenService) =>
+{
+
+    if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
+        return Results.BadRequest(new { error = "användarnamn och lösenord krävs" });
+
+    var user = users.FirstOrDefault(u => u.Username == req.Username);
+
+    var ok = user is not null && BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash);
+    if (!ok) return Results.Unauthorized();
+
+    var token = tokenService.CreateToken(user!);
+    return Results.Ok(new
+    {
+        token,
+        user = new { id = user!.Id, username = user.Username, role = user.Role }
+    });
+});
 
 app.MapGet("/api/documents", async (DocumentService documents, HttpContext context) =>
     Results.Ok(await documents.ListAsync(context.RequestAborted)));
@@ -99,3 +153,5 @@ app.MapDelete("/api/history", async (ChatService chat, HttpContext context) =>
 });
 
 app.Run();
+
+public record LoginRequest(string Username, string Password);
