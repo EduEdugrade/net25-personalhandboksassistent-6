@@ -4,6 +4,7 @@ const chatBox = document.getElementById('chat-box');
 const logoutButton = document.querySelector(".logout-button");
 const addDocumentButton = document.querySelector(".add-document");
 const documents = document.querySelector(".documents");
+const clearHistoryButton = document.querySelector(".clearHistory");
 
 const isAdmin = true; // "false" gömmer vänstra dokument panelen
 
@@ -17,6 +18,33 @@ submitButton.addEventListener("click", () => {
 
 logoutButton.addEventListener("click", () => {
     //Todo: Skicka tillbaka användaren till loginsidan
+});
+
+clearHistoryButton.addEventListener("click", async () => {
+    try {
+        const response = await fetch("/api/history", {
+            method: "DELETE"
+        });
+
+        if (!response.ok) {
+            throw new Error("Kunde inte rensa chatthistoriken.");
+        }
+
+        const data = await response.json();
+        
+        chatBox.innerHTML = `
+            <div class="welcome-message">
+                <h2>Hej! Hur kan jag hjälpa dig?</h2>
+                <p>
+                    Jag kan svara på frågor utifrån dokumenten
+                    i personalhandboken.
+                </p>
+            </div>
+        `;
+        console.log(data.message);
+    } catch (error) {
+        console.error("Fel vid rensning av historik:", error);
+    }
 });
 
 addDocumentButton.addEventListener("click", () => {
