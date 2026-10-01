@@ -1,18 +1,19 @@
 using DotNetEnv;
 using Personalhandboksassistent.Repositories;
 using Personalhandboksassistent.Services;
+using Personalhandboksassistent.Models;
 
 Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<SearchService>();
+builder.Services.AddSingleton<AnswerService>();
+builder.Services.AddSingleton<ChatService>();
 builder.Services.AddSingleton<IFileRepository, AzBlobFileRepository>();
 
 var app = builder.Build();
 
-// Force construction of the file repo to bubble up configuration errors at startup instead of
-// letting it fail on first request. Should this be handled better?.. Probably.
 _ = app.Services.GetRequiredService<IFileRepository>();
 
 app.UseDefaultFiles();
@@ -33,5 +34,12 @@ app.MapGet("/api/search", async (string question, SearchService search) =>
 });
 
 app.MapGet("/testFile", (IFileRepository fileRepo) => fileRepo.ListAsync(""));
+
+app.MapPost("/api/chat", async (ChatRequest request, ChatService chat) =>
+{
+    var reply = await chat.AskAsync(request.Question);
+
+    return Results.Ok(reply);
+});
 
 app.Run();
