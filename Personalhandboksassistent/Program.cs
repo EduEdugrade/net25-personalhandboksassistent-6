@@ -42,6 +42,20 @@ app.MapGet("/testFile", (IFileRepository fileRepo) => fileRepo.ListAsync(""));
 app.MapGet("/api/documents", async (DocumentService documents) =>
     Results.Ok(await documents.ListAsync()));
 
+app.MapGet("/api/documents/{fileName}", async (string fileName, IFileRepository files) =>
+{
+    try
+    {
+        var file = await files.GetAsync(fileName);
+
+        return Results.File(file.Content, file.ContentType, enableRangeProcessing: true);
+    }
+    catch (RequestFailedException ex) when (ex.Status == 404)
+    {
+        return Results.NotFound(new { message = "Dokumentet finns inte." });
+    }
+});
+
 app.MapPost("/api/addFile", async (IFormFile file, DocumentService documents) =>
 {
     var oldChunks = await documents.UploadAsync(file.FileName, file.OpenReadStream(), file.ContentType);
