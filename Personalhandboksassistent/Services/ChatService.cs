@@ -30,17 +30,6 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
 
         var chunks = await search.SearchAsync(question, cancellationToken);
 
-        if (chunks.Count == 0)
-        {
-            var notFound = ChatMessage.NotFound("Jag hittar inte det här i personalhandboken. Kontakta HR om du är osäker.");
-            chat.Messages.Add(new ChatMessage { Role = ChatRoles.User, Message = question });
-            chat.Messages.Add(notFound);
-            chat.UpdatedAt = DateTimeOffset.UtcNow;
-            await chats.SaveAsync(user, chat, cancellationToken);
-            yield return notFound.Message;
-            yield break;
-        }
-
         var full = new StringBuilder();
 
         await foreach (var delta in answer.AnswerStreamAsync(question, chunks, history, cancellationToken))

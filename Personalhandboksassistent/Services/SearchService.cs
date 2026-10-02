@@ -25,7 +25,7 @@ public class SearchService
         _semanticConfig = Environment.GetEnvironmentVariable("AZURE_SEARCH_SEMANTIC_CONFIG")
             ?? throw new InvalidOperationException("AZURE_SEARCH_SEMANTIC_CONFIG saknas i .env");
         _topK = int.TryParse(Environment.GetEnvironmentVariable("SEARCH_TOP_K"), out var topK) ? topK : 10;
-        _minRerankerScore = double.TryParse(Environment.GetEnvironmentVariable("RAG_MIN_RERANKER_SCORE"), NumberStyles.Float, CultureInfo.InvariantCulture, out var minimum) ? minimum : 1.0;
+        _minRerankerScore = double.TryParse(Environment.GetEnvironmentVariable("RAG_MIN_RERANKER_SCORE"), NumberStyles.Float, CultureInfo.InvariantCulture, out var minimum) ? minimum : 0.0;
 
         _client = new SearchClient(new Uri(endpoint), index, new AzureKeyCredential(key));
     }

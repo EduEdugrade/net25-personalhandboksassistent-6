@@ -64,7 +64,9 @@ public class AnswerService
 
     private CreateResponseOptions BuildOptions(string question, List<DocumentChunk> chunks, List<ChatMessage> history)
     {
-        var context = string.Join("\n\n", chunks.Select((chunk, index) => $"[{index + 1}] {chunk.Title}\n{chunk.Content}"));
+        var context = chunks.Count == 0
+            ? "(inga dokumentträffar för denna fråga)"
+            : string.Join("\n\n", chunks.Select((chunk, index) => $"[{index + 1}] {chunk.Title}\n{chunk.Content}"));
 
         var historySummary = history.Count == 0
             ? string.Empty
