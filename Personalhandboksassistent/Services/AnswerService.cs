@@ -80,15 +80,6 @@ public class AnswerService
         };
     }
 
-    public async Task<string> AnswerAsync(string question, List<DocumentChunk> chunks, List<ChatMessage> history, CancellationToken cancellationToken = default)
-    {
-        var options = BuildOptions(question, chunks, history);
-
-        var response = await _client.CreateResponseAsync(options, cancellationToken);
-
-        return (response.Value.GetOutputText() ?? string.Empty).Trim();
-    }
-
     public async IAsyncEnumerable<string> AnswerStreamAsync(string question, List<DocumentChunk> chunks, List<ChatMessage> history, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var options = BuildOptions(question, chunks, history);

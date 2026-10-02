@@ -8,42 +8,9 @@ namespace Personalhandboksassistent.Services;
 
 public class ChatService(SearchService search, AnswerService answer, IChatRepository chats)
 {
-    public async Task<ChatMessage> AskAsync(string user, string question, CancellationToken cancellationToken = default)
-    {
-        var chat = await chats.GetAsync(user, cancellationToken);
-        var reply = await AskAsync(question, chat.Messages, cancellationToken);
-
-        chat.Messages.Add(new ChatMessage { Role = ChatRoles.User, Message = question });
-        chat.Messages.Add(reply);
-        chat.UpdatedAt = DateTimeOffset.UtcNow;
-
-        await chats.SaveAsync(user, chat, cancellationToken);
-
-        return reply;
-    }
-
     public Task ClearAsync(string user, CancellationToken cancellationToken = default) => chats.ClearAsync(user, cancellationToken);
 
     public Task<Chat> GetHistoryAsync(string user, CancellationToken cancellationToken = default) => chats.GetAsync(user, cancellationToken);
-
-    private async Task<ChatMessage> AskAsync(string question, List<ChatMessage> history, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(question))
-        {
-            return ChatMessage.NotFound("Skriv en fråga om personalhandboken.");
-        }
-
-        var chunks = await search.SearchAsync(question, cancellationToken);
-
-        if (chunks.Count == 0)
-        {
-            return ChatMessage.NotFound("Jag hittar inte det här i personalhandboken. Kontakta HR om du är osäker.");
-        }
-
-        var reply = await answer.AnswerAsync(question, chunks, history, cancellationToken);
-
-        return FinalizeReply(reply, chunks);
-    }
 
     public async IAsyncEnumerable<string> AskStreamAsync(string user, string question, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {

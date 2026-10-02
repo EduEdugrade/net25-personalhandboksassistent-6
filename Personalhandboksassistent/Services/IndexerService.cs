@@ -119,18 +119,6 @@ public class IndexerService
         return await DeleteChunksAsync(keys, cancellationToken);
     }
 
-    public async Task<int> CleanOrphansAsync(IReadOnlyCollection<string> files, CancellationToken cancellationToken = default)
-    {
-        var chunks = await GetChunksAsync(cancellationToken);
-
-        var keys = chunks
-            .Where(chunk => !files.Contains(chunk.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase))
-            .Select(chunk => chunk.Id)
-            .ToList();
-
-        return await DeleteChunksAsync(keys, cancellationToken);
-    }
-
     private async Task<int> DeleteChunksAsync(List<string> keys, CancellationToken cancellationToken)
     {
         if (keys.Count == 0)

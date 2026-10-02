@@ -45,13 +45,6 @@ public class DocumentService(IFileRepository files, IndexerService indexer)
 
         return chunksRemoved;
     }
-
-    public async Task<int> CleanOrphansAsync(CancellationToken cancellationToken = default)
-    {
-        var filesInContainer = (await ListAsync(cancellationToken)).Select(document => document.Name).ToList();
-
-        return await indexer.CleanOrphansAsync(filesInContainer, cancellationToken);
-    }
 }
 
 public record UploadResult(int OldChunksRemoved, bool Indexed);
