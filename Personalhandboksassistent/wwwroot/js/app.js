@@ -9,7 +9,14 @@ const clearHistoryButton = document.querySelector(".clearHistory");
 const deleteModal = document.getElementById("deleteModal");
 const cancelDelete = document.getElementById("cancelDelete");
 const confirmDelete = document.getElementById("confirmDelete");
-let documentToDelete = null;
+const modalTitle = document.getElementById("modalTitle");
+const modalMessage = document.getElementById("modalMessage");
+
+let modalAction = null;
+
+const loginModal = document.getElementById("loginModal");
+const loginForm = document.getElementById("loginForm");
+const loginError = document.getElementById("loginError");
 
 if (!getToken()) {
    showLoginModal();
@@ -90,31 +97,17 @@ function hideLoginModal() {
    document.body.style.overflow = "";
 }
 
-clearHistoryButton.addEventListener("click", async () => {
-   try {
-      const response = await authFetch("/api/history", {
-         method: "DELETE",
-      });
+clearHistoryButton.addEventListener("click", () => {
+  modalTitle.textContent = "Töm chatthistoriken?";
+  modalMessage.textContent =
+    "Vill du verkligen ta bort all din chatthistorik?";
 
-      if (!response.ok) {
-         throw new Error("Kunde inte rensa chatthistoriken.");
-      }
+  confirmDelete.textContent = "Töm historik";
+  confirmDelete.style.background = "#e5484d";
 
-      const data = await response.json();
+  modalAction = "clearHistory";
 
-      chatBox.innerHTML = `
-            <div class="welcome-message">
-                <h2>Hej! Hur kan jag hjälpa dig?</h2>
-                <p>
-                    Jag kan svara på frågor utifrån dokumenten
-                    i personalhandboken.
-                </p>
-            </div>
-        `;
-      console.log(data.message);
-   } catch (error) {
-      console.error("Fel vid rensning av historik:", error);
-   }
+  deleteModal.classList.add("active");
 });
 
 addDocumentButton.addEventListener("click", () => {
@@ -360,29 +353,65 @@ function renderDocuments(documentList) {
       documentElement.querySelector(".document-meta").textContent =
          documentItem.type;
 
-      documentElement
-         .querySelector(".delete-document")
-         .addEventListener("click", () => {
-            documentToDelete = documentItem.name;
-            deleteModal.classList.add("active");
-         });
+      documentElement.addEventListener("click", () => {
+        modalTitle.textContent = "Radera dokument?";
+        modalMessage.textContent ="Vill du verkligen radera detta dokument?";
+        confirmDelete.textContent = "Radera";
+        confirmDelete.style.background = "#e5484d";
+
+        modalAction = {
+            type: "deleteDocument",
+            id: documentItem.name,
+        };
+
+        deleteModal.classList.add("active");
+    });
 
       documents.appendChild(documentElement);
    });
 }
 
 cancelDelete.addEventListener("click", () => {
-   deleteModal.classList.remove("active");
-   documentToDelete = null;
+  deleteModal.classList.remove("active");
+  modalAction = null;
 });
 
-confirmDelete.addEventListener("click", () => {
-   deleteModal.classList.remove("active");
+confirmDelete.addEventListener("click", async () => {
+    deleteModal.classList.remove("active");
 
-   if (documentToDelete) {
-      deleteDocument(documentToDelete);
-      documentToDelete = null;
-   }
+  if (modalAction === "clearHistory") {
+    try {
+      const response = await authFetch("/api/history", {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Kunde inte rensa chatthistoriken.");
+      }
+
+      const data = await response.json();
+
+      chatBox.innerHTML = `
+        <div class="welcome-message">
+          <h2>Hej! Hur kan jag hjälpa dig?</h2>
+          <p>
+            Jag kan svara på frågor utifrån dokumenten
+            i personalhandboken.
+          </p>
+        </div>
+      `;
+
+      console.log(data.message);
+    } catch (error) {
+      console.error("Fel vid rensning av historik:", error);
+    }
+  }
+
+  if (modalAction?.type === "deleteDocument") {
+    await deleteDocument(modalAction.id);
+  }
+
+  modalAction = null;
 });
 
 if (getToken()) {
