@@ -1,108 +1,90 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="sv">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Personalhandboksassistenten</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css" />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"
+    ></script>
     <script defer src="js/app.js"></script>
-</head>
+  </head>
 
-<body>
+  <body>
     <header class="header">
-        <div class="header-left">
-            <div>
-                <h1>Personalhandboksassistenten</h1>
-                <p>Din AI-assistent för personalhandboken</p>
-            </div>
+      <div class="header-left">
+        <div>
+          <h1>Personalhandboksassistenten</h1>
+          <p>Din AI-assistent för personalhandboken</p>
         </div>
+      </div>
 
-        <button class="logout-button" type="button">
-            Logga ut
-        </button>
+      <button class="logout-button" type="button">Logga ut</button>
     </header>
 
-
     <main class="main">
-        <aside class="leftSection" id="adminPanel">
-            <div class="sidebar-header">
-                <div>
-                    <h2>Dokument</h2>
-                    <p>Personalhandbok & filer</p>
-                </div>
+      <aside class="leftSection" id="adminPanel">
+        <div class="sidebar-header">
+          <div>
+            <h2>Dokument</h2>
+            <p>Personalhandbok & filer</p>
+          </div>
+        </div>
+
+        <div class="documents" id="documents"></div>
+
+        <div class="sidebar-footer">
+          <button id="addDocument" class="add-document">
+            <span>+</span>
+            Lägg till dokument
+          </button>
+          <input type="file" id="fileInput" style="display: none" />
+        </div>
+      </aside>
+
+      <section class="rightSection">
+        <div class="chat-container">
+          <div class="chat-header">
+            <button type="button" class="clearHistory">Töm chatt</button>
+          </div>
+          <div class="chat-box" id="chat-box">
+            <div class="welcome-message">
+              <h2>Hej! Hur kan jag hjälpa dig?</h2>
+
+              <p>
+                Jag kan svara på frågor utifrån dokumenten i personalhandboken.
+              </p>
             </div>
+          </div>
 
-            <div class="documents" id="documents"></div>
+          <div class="user-input">
+            <input
+              class="userQuestion"
+              type="text"
+              placeholder="Skriv din fråga..."
+              autocomplete="off"
+            />
 
-            <div class="sidebar-footer">
-                <button id="addDocument" class="add-document">
-                    <span>+</span>
-                    Lägg till dokument
-                </button>
-                <input type="file" id="fileInput" style="display: none;">
-            </div>
-        </aside>
-
-        <section class="rightSection">
-            <div class="chat-container">
-                <div class="chat-header">
-                    <button type="button" class="clearHistory">Töm chatt</button>
-                </div>
-                <div class="chat-box" id="chat-box">
-                    <div class="welcome-message">
-                        <h2>Hej! Hur kan jag hjälpa dig?</h2>
-
-                        <p>
-                            Jag kan svara på frågor utifrån dokumenten
-                            i personalhandboken.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="user-input">
-                    <input class="userQuestion" type="text" placeholder="Skriv din fråga..." autocomplete="off">
-
-                    <button type="button" class="submitButton">Skicka</button>
-                </div>
-            </div>
-        </section>
+            <button type="button" class="submitButton">Skicka</button>
+          </div>
+        </div>
+      </section>
     </main>
 
     <div id="deleteModal" class="modal">
-        <div class="modal-content">
-            <h2>Radera dokument?</h2>
-            <p>Vill du verkligen radera detta dokument?</p>
+      <div class="modal-content">
+        <h2>Radera dokument?</h2>
+        <p>Vill du verkligen radera detta dokument?</p>
 
-            <button id="cancelDelete">Avbryt</button>
-            <button id="confirmDelete">Radera</button>
-        </div>
+        <button id="cancelDelete">Avbryt</button>
+        <button id="confirmDelete">Radera</button>
+      </div>
     </div>
-
-    <div id="loginModal" class="login-modal">
-        <div class="login-modal-content">
-            <div class="login-header">
-                <h2>Logga in</h2>
-            </div>
-
-            <form id="loginForm">
-                <div class="login-field">
-                    <label for="username">Användarnamn</label>
-                    <input id="username" type="text" placeholder="Användarnamn" autocomplete="username" required>
-                </div>
-
-                <div class="login-field">
-                    <label for="password">Lösenord</label>
-                    <input id="password" type="password" placeholder="Lösenord" autocomplete="current-password" required>
-                </div>
-
-                <button class="login-button" type="submit">Logga in</button>
-
-                <p id="loginError" class="login-error"></p>
-            </form>
-        </div>
-    </div>
-
-</body>
-
+  </body>
 </html>
