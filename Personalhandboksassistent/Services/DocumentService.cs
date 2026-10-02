@@ -39,9 +39,11 @@ public class DocumentService(IFileRepository files, IndexerService indexer)
 
     public async Task<int> DeleteAsync(string fileName, CancellationToken cancellationToken = default)
     {
+        var chunksRemoved = await indexer.DeleteChunksAsync(fileName, cancellationToken);
+
         await files.DeleteAsync(fileName, cancellationToken);
 
-        return await indexer.DeleteChunksAsync(fileName, cancellationToken);
+        return chunksRemoved;
     }
 
     public async Task<int> CleanOrphansAsync(CancellationToken cancellationToken = default)

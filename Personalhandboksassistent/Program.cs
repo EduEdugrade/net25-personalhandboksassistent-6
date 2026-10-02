@@ -115,16 +115,23 @@ app.MapPost("/api/addFile", async (IFormFile file, DocumentService documents, Ht
         return Results.BadRequest(new { message = $"Filen är för stor. Max {DocumentRules.MaxMegabytes} MB." });
     }
 
-    var result = await documents.UploadAsync(file.FileName, file.OpenReadStream(), file.ContentType, context.RequestAborted);
+    var result = await documents.UploadAsync(file.FileName, file.OpenReadStream(), DocumentRules.ContentTypeOf(file.FileName), context.RequestAborted);
 
     return Results.Ok(new { name = file.FileName, oldChunksRemoved = result.OldChunksRemoved, indexed = result.Indexed });
 }).DisableAntiforgery();
 
 app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentService documents, HttpContext context) =>
 {
-    var chunksRemoved = await documents.DeleteAsync(fileName, context.RequestAborted);
+    try
+    {
+        var chunksRemoved = await documents.DeleteAsync(fileName, context.RequestAborted);
 
-    return Results.Ok(new { name = fileName, chunksRemoved });
+        return Results.Ok(new { name = fileName, chunksRemoved });
+    }
+    catch (RequestFailedException ex) when (ex.Status == 404)
+    {
+        return Results.NotFound(new { message = "Dokumentet finns inte." });
+    }
 });
 
 app.MapPost("/api/index/cleanup", async (DocumentService documents, HttpContext context) =>
