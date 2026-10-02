@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Personalhandboksassistent.Models;
 using Personalhandboksassistent.Repositories;
 
@@ -49,6 +50,15 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
             return ChatMessage.NotFound("Jag svarar bara på personalrelaterade frågor.");
         }
 
+        if (reply.StartsWith("OKLART", StringComparison.OrdinalIgnoreCase))
+        {
+            var clarification = reply[(reply.IndexOf(':') + 1)..].Trim();
+
+            return ChatMessage.NotFound(clarification.Length == 0
+                ? "Jag förstår inte frågan. Kan du formulera om den?"
+                : clarification);
+        }
+
         if (reply.Length == 0)
         {
             return ChatMessage.NotFound("Jag kunde inte skapa ett svar just nu. Försök igen.");
@@ -59,8 +69,36 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
             Role = ChatRoles.Assistant,
             Message = reply,
             IsFound = true,
-            Sources = BuildSources(chunks)
+            Sources = CitedSources(reply, chunks)
         };
+    }
+
+    private static List<SourceReference> CitedSources(string reply, List<DocumentChunk> chunks)
+    {
+        var sources = BuildSources(chunks);
+        var cited = Regex.Matches(reply, @"\[(\d+)\]")
+            .Select(match => int.Parse(match.Groups[1].Value))
+            .Where(number => number >= 1 && number <= sources.Count)
+            .Distinct()
+            .OrderBy(number => number)
+            .Select(number => sources[number - 1])
+            .ToList();
+
+        return cited.Count > 0
+            ? cited
+            : OverviewSource(reply, sources);
+    }
+
+    private static List<SourceReference> OverviewSource(string reply, List<SourceReference> sources)
+    {
+        if (!reply.Contains("företagsöversikt", StringComparison.OrdinalIgnoreCase))
+        {
+            return [];
+        }
+
+        var overview = sources.FirstOrDefault(source => source.Title.Contains("Overview", StringComparison.OrdinalIgnoreCase));
+
+        return overview is null ? [] : [overview];
     }
 
     private static List<SourceReference> BuildSources(List<DocumentChunk> chunks)
