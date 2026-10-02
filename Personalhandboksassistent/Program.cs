@@ -48,9 +48,6 @@ builder.Services.AddSingleton<JwtTokenService>();
 
 var app = builder.Build();
 
-_ = app.Services.GetRequiredService<ChatService>();
-_ = app.Services.GetRequiredService<DocumentService>();
-
 app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 {
     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
@@ -110,7 +107,15 @@ admin.MapPost("/addFile", async (IFormFile file, DocumentService documents, Http
 
     var result = await documents.UploadAsync(file.FileName, file.OpenReadStream(), DocumentRules.ContentTypeOf(file.FileName), context.RequestAborted);
 
-    return Results.Ok(new { name = file.FileName, oldChunksRemoved = result.OldChunksRemoved, indexed = result.Indexed });
+    return Results.Ok(new
+    {
+        name = file.FileName,
+        oldChunksRemoved = result.OldChunksRemoved,
+        indexed = result.Indexed,
+        message = result.Indexed
+            ? "Dokumentet laddades upp och är nu sökbart."
+            : "Dokumentet laddades upp, men indexeringen är inte klar ännu. Det kan dröja en stund innan det går att söka efter det."
+    });
 }).DisableAntiforgery();
 
 admin.MapDelete("/documents/{fileName}", async (string fileName, DocumentService documents, HttpContext context) =>

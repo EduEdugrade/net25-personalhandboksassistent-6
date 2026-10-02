@@ -353,7 +353,7 @@ async function openSource(source) {
 
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
-    const target = source.page ? `${url}#page=${source.page}` : url;
+    const target = source.page && /\.pdf$/i.test(source.title) ? `${url}#page=${source.page}` : url;
 
     window.open(target, "_blank", "noopener");
 
@@ -416,19 +416,21 @@ function renderDocuments(documentList) {
     documentElement.querySelector(".document-meta").textContent =
       documentItem.type;
 
-    documentElement.addEventListener("click", () => {
-      modalTitle.textContent = "Radera dokument?";
-      modalMessage.textContent = "Vill du verkligen radera detta dokument?";
-      confirmDelete.textContent = "Radera";
-      confirmDelete.style.background = "#e5484d";
+    documentElement
+      .querySelector(".delete-document")
+      .addEventListener("click", () => {
+        modalTitle.textContent = "Radera dokument?";
+        modalMessage.textContent = "Vill du verkligen radera detta dokument?";
+        confirmDelete.textContent = "Radera";
+        confirmDelete.style.background = "#e5484d";
 
-      modalAction = {
-        type: "deleteDocument",
-        id: documentItem.name,
-      };
+        modalAction = {
+          type: "deleteDocument",
+          id: documentItem.name,
+        };
 
-      deleteModal.classList.add("active");
-    });
+        deleteModal.classList.add("active");
+      });
 
     documents.appendChild(documentElement);
   });
