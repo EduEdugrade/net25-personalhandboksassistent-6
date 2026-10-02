@@ -10,10 +10,6 @@ function getRole() {
    return localStorage.getItem(ROLE_KEY);
 }
 
-function getUsername() {
-   return localStorage.getItem(NAME_KEY);
-}
-
 function setSession(token, user) {
    localStorage.setItem(TOKEN_KEY, token);
    localStorage.setItem(ROLE_KEY, user.role);
@@ -24,17 +20,6 @@ function clearSession() {
    localStorage.removeItem(TOKEN_KEY);
    localStorage.removeItem(ROLE_KEY);
    localStorage.removeItem(NAME_KEY);
-}
-
-function requireAuth() {
-   if (!getToken()) {
-      location.replace("/login.html");
-   }
-}
-
-function logout() {
-   clearSession();
-   location.replace("/login.html");
 }
 
 async function authFetch(url, options = {}) {

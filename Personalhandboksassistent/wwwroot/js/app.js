@@ -207,13 +207,15 @@ async function getAiResponse(question) {
   }
 
   userQuestion.value = "";
-
   addMessage("user", question);
 
-  const waiting = addMessage("assistant", "Tänker …");
+  const bubble = addMessage("assistant", "");
+  bubble.textContent = "Tänker …";
+
+  let full = "";
 
   try {
-    const response = await authFetch("/api/answer", {
+    const response = await authFetch("/api/answer/stream", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -227,13 +229,30 @@ async function getAiResponse(question) {
       throw new Error(`Fel: ${response.status}`);
     }
 
-    const data = await response.json();
+    if (!response.body) {
+      throw new Error("Streaming stöds inte i den här webbläsaren.");
+    }
 
-    waiting.remove();
-    addMessage("assistant", data.answer, data.sources);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      full += decoder.decode(value, { stream: true });
+      bubble.textContent = full;
+    }
+
+    const history = await (await authFetch("/api/history")).json();
+    const last = history.messages?.[history.messages.length - 1];
+
+    renderAssistantMessage(bubble, last?.message ?? full, last?.sources ?? []);
   } catch (error) {
-    waiting.remove();
-    addMessage("assistant", "Något gick fel. Försök igen.");
+    bubble.textContent = "Något gick fel. Försök igen.";
     console.error("Fetch-fel:", error);
   }
 }
@@ -251,23 +270,27 @@ function addMessage(role, text, sources = []) {
   if (role === "user") {
     message.textContent = text;
   } else {
-    const html = toMarkdownHtml(text, sources);
-
-    if (html === null) {
-      message.textContent = text;
-    } else {
-      message.innerHTML = html;
-    }
-
-    if (sources && sources.length > 0) {
-      message.appendChild(createSources(sources));
-    }
+    renderAssistantMessage(message, text, sources);
   }
 
   chatBox.appendChild(message);
   chatBox.scrollTop = chatBox.scrollHeight;
 
   return message;
+}
+
+function renderAssistantMessage(message, text, sources) {
+  const html = toMarkdownHtml(text, sources);
+
+  if (html === null) {
+    message.textContent = text;
+  } else {
+    message.innerHTML = html;
+  }
+
+  if (sources && sources.length > 0) {
+    message.appendChild(createSources(sources));
+  }
 }
 
 function toMarkdownHtml(text, sources) {
