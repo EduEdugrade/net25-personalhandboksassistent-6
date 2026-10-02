@@ -11,19 +11,75 @@ const cancelDelete = document.getElementById("cancelDelete");
 const confirmDelete = document.getElementById("confirmDelete");
 let documentToDelete = null;
 
-const isAdmin = true; // "false" gömmer vänstra dokument panelen
+const loginModal = document.getElementById("loginModal");
+const loginForm = document.getElementById("loginForm");
+const loginError = document.getElementById("loginError");
 
-if (isAdmin) {
-    document.body.classList.add("admin");
-}
+let isAdmin = false; // "false" gömmer vänstra dokument panelen
 
 submitButton.addEventListener("click", () => {
     getAiResponse(userQuestion.value);
 });
 
 logoutButton.addEventListener("click", () => {
-    //Todo: Skicka tillbaka användaren till loginsidan
+    //Todo: ta bort jwt token?
+    isAdmin = false;
+    document.body.classList.remove("admin");
+    
+    showLoginModal();
 });
+
+loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+    loginError.textContent = "";
+
+    try {
+        const response = await fetch("/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                username,
+                password
+            })
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error("Fel användarnamn eller lösenord.");
+            }
+
+            throw new Error("Kunde inte logga in.");
+        }
+
+        const data = await response.json();
+
+        hideLoginModal();
+        console.log("Inloggad som:", data.user);
+
+        if (data.user.role === "admin") {
+            isAdmin = true;
+            document.body.classList.add("admin");
+            loadDocuments();
+        }
+    } catch (error) {
+        loginError.textContent = error.message;
+    }
+});
+
+function showLoginModal() {
+    loginModal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+}
+
+function hideLoginModal() {
+    loginModal.classList.add("hidden");
+    document.body.style.overflow = "";
+}
 
 clearHistoryButton.addEventListener("click", async () => {
     try {
@@ -204,5 +260,3 @@ confirmDelete.addEventListener("click", () => {
         documentToDelete = null;
     }
 });
-
-loadDocuments();
