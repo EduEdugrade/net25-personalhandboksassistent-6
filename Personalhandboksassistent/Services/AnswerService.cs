@@ -1,4 +1,5 @@
 using System.ClientModel;
+using System.Runtime.CompilerServices;
 using OpenAI.Responses;
 using Personalhandboksassistent.Models;
 
@@ -61,7 +62,7 @@ public class AnswerService
             new ResponsesClientOptions { Endpoint = new Uri(endpoint) });
     }
 
-    public async Task<string> AnswerAsync(string question, List<DocumentChunk> chunks, List<ChatMessage> history, CancellationToken cancellationToken = default)
+    private CreateResponseOptions BuildOptions(string question, List<DocumentChunk> chunks, List<ChatMessage> history)
     {
         var context = string.Join("\n\n", chunks.Select((chunk, index) => $"[{index + 1}] {chunk.Title}\n{chunk.Content}"));
 
@@ -69,7 +70,7 @@ public class AnswerService
             ? string.Empty
             : "TIDIGARE KONVERSATION:\n" + string.Join("\n", history.Select(message => $"{message.Role}: {message.Message}")) + "\n\n";
 
-        var options = new CreateResponseOptions(_deployment,
+        return new CreateResponseOptions(_deployment,
         [
             ResponseItem.CreateUserMessageItem($"{historySummary}FRÅGA: {question}\n\nKONTEXT:\n{context}")
         ])
@@ -77,9 +78,21 @@ public class AnswerService
             Instructions = Instructions,
             MaxOutputTokenCount = _maxOutputTokens
         };
+    }
 
-        var response = await _client.CreateResponseAsync(options, cancellationToken);
+    public async IAsyncEnumerable<string> AnswerStreamAsync(string question, List<DocumentChunk> chunks, List<ChatMessage> history, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var options = BuildOptions(question, chunks, history);
+        options.StreamingEnabled = true;
 
-        return (response.Value.GetOutputText() ?? string.Empty).Trim();
+        var updates = _client.CreateResponseStreamingAsync(options, cancellationToken);
+
+        await foreach (var update in updates)
+        {
+            if (update is StreamingResponseOutputTextDeltaUpdate delta)
+            {
+                yield return delta.Delta;
+            }
+        }
     }
 }

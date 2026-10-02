@@ -29,5 +29,4 @@ public class ChatMessage
     };
 }
 
-public record ChatRequest(string Question = "");
 public record AnswerRequest(string Message = "");

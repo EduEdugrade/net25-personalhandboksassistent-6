@@ -18,85 +18,122 @@ const loginModal = document.getElementById("loginModal");
 const loginForm = document.getElementById("loginForm");
 const loginError = document.getElementById("loginError");
 
+const welcomeHtml = `
+            <div class="welcome-message">
+                <h2>Hej! Hur kan jag hjälpa dig?</h2>
+                <p>
+                    Jag kan svara på frågor utifrån dokumenten
+                    i personalhandboken.
+                </p>
+            </div>
+        `;
+
+function resetChatBox() {
+  chatBox.innerHTML = welcomeHtml;
+}
+
 if (!getToken()) {
-   showLoginModal();
+  showLoginModal();
 } else {
-   hideLoginModal();
+  hideLoginModal();
 }
 const isAdmin = getRole() === "admin";
 
 if (isAdmin) {
-   document.body.classList.add("admin");
-   loadDocuments();
+  document.body.classList.add("admin");
+  loadDocuments();
 }
 
 submitButton.addEventListener("click", () => {
-   getAiResponse(userQuestion.value);
+  getAiResponse(userQuestion.value);
 });
 
 userQuestion.addEventListener("keydown", (event) => {
-   if (event.key === "Enter") {
-      getAiResponse(userQuestion.value);
-   }
+  if (event.key === "Enter") {
+    getAiResponse(userQuestion.value);
+  }
 });
 
 logoutButton.addEventListener("click", () => {
-   clearSession();
-   document.body.classList.remove("admin");
-   showLoginModal();
+  clearSession();
+  document.body.classList.remove("admin");
+  resetChatBox();
+  showLoginModal();
 });
 
 loginForm.addEventListener("submit", async (event) => {
-   event.preventDefault();
+  event.preventDefault();
 
-   const username = document.getElementById("username").value.trim();
-   const password = document.getElementById("password").value;
-   loginError.textContent = "";
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  loginError.textContent = "";
 
-   try {
-      const response = await fetch("/login", {
-         method: "POST",
-         headers: {
-            "Content-Type": "application/json",
-         },
-         body: JSON.stringify({
-            username,
-            password,
-         }),
-      });
+  try {
+    const response = await fetch("/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        password,
+      }),
+    });
 
-      if (!response.ok) {
-         if (response.status === 401) {
-            throw new Error("Fel användarnamn eller lösenord.");
-         }
-
-         throw new Error("Kunde inte logga in.");
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Fel användarnamn eller lösenord.");
       }
 
-      const data = await response.json();
+      throw new Error("Kunde inte logga in.");
+    }
 
-      setSession(data.token, data.user);
-      hideLoginModal();
+    const data = await response.json();
 
-      if (data.user.role === "admin") {
-         document.body.classList.add("admin");
-         loadDocuments();
-      }
-   } catch (error) {
-      loginError.textContent = error.message;
-   }
+    setSession(data.token, data.user);
+    hideLoginModal();
+
+    if (data.user.role === "admin") {
+      document.body.classList.add("admin");
+      loadDocuments();
+    } else {
+      document.body.classList.remove("admin");
+    }
+
+    resetChatBox();
+    loadHistory();
+  } catch (error) {
+    loginError.textContent = error.message;
+  }
 });
 
 function showLoginModal() {
-   loginModal.classList.remove("hidden");
-   document.body.style.overflow = "hidden";
+  loginModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
 }
 
 function hideLoginModal() {
-   loginModal.classList.add("hidden");
-   document.body.style.overflow = "";
+  loginModal.classList.add("hidden");
+  document.body.style.overflow = "";
 }
 
+clearHistoryButton.addEventListener("click", async () => {
+  try {
+    const response = await authFetch("/api/history", {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Kunde inte rensa chatthistoriken.");
+    }
+
+    const data = await response.json();
+
+    resetChatBox();
+    console.log(data.message);
+  } catch (error) {
+    console.error("Fel vid rensning av historik:", error);
+  }
 clearHistoryButton.addEventListener("click", () => {
   modalTitle.textContent = "Töm chatthistoriken?";
   modalMessage.textContent =
@@ -111,227 +148,271 @@ clearHistoryButton.addEventListener("click", () => {
 });
 
 addDocumentButton.addEventListener("click", () => {
-   const fileInput = document.getElementById("fileInput");
+  const fileInput = document.getElementById("fileInput");
 
-   fileInput.addEventListener(
-      "change",
-      async (event) => {
-         const file = event.target.files[0];
+  fileInput.addEventListener(
+    "change",
+    async (event) => {
+      const file = event.target.files[0];
 
-         if (file) await addDocument(file);
-      },
-      { once: true },
-   );
+      if (file) await addDocument(file);
+    },
+    { once: true },
+  );
 
-   fileInput.click();
+  fileInput.click();
 });
 
 async function addDocument(file) {
-   try {
-      const formData = new FormData();
-      formData.append("file", file);
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const response = await authFetch("/api/addFile", {
-         method: "POST",
-         body: formData,
-      });
+    const response = await authFetch("/api/addFile", {
+      method: "POST",
+      body: formData,
+    });
 
-      if (!response.ok) throw new Error("Kunde inte ladda upp filen");
+    if (!response.ok) throw new Error("Kunde inte ladda upp filen");
 
-      const data = await response.json();
-      console.log("Uppladdning lyckades!", data);
+    const data = await response.json();
+    console.log("Uppladdning lyckades!", data);
 
-      await loadDocuments();
-   } catch (error) {
-      console.error("Fel vid tillägg av dokument:", error);
-   }
+    await loadDocuments();
+  } catch (error) {
+    console.error("Fel vid tillägg av dokument:", error);
+  }
 }
 
 async function deleteDocument(id) {
-   try {
-      const response = await authFetch(
-         `/api/documents/${encodeURIComponent(id)}`,
-         {
-            method: "DELETE",
-         },
-      );
+  try {
+    const response = await authFetch(
+      `/api/documents/${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+      },
+    );
 
-      if (!response.ok) throw new Error(`Fel: ${response.status}`);
+    if (!response.ok) throw new Error(`Fel: ${response.status}`);
 
-      const result = await response.json();
+    const result = await response.json();
 
-      console.log("Dokument raderat:", result);
-      loadDocuments();
-   } catch (error) {
-      console.error("Kunde inte radera dokumentet: ", error);
-   }
+    console.log("Dokument raderat:", result);
+    loadDocuments();
+  } catch (error) {
+    console.error("Kunde inte radera dokumentet: ", error);
+  }
 }
 
 async function loadDocuments() {
-   try {
-      const response = await authFetch("/api/documents");
+  try {
+    const response = await authFetch("/api/documents");
 
-      if (!response.ok) {
-         throw new Error("Kunde inte hämta dokumenten");
-      }
+    if (!response.ok) {
+      throw new Error("Kunde inte hämta dokumenten");
+    }
 
-      const documents = await response.json();
-      renderDocuments(documents);
-   } catch (error) {
-      console.error("Kunde inte ladda dokumenten: ", error);
-   }
+    const documents = await response.json();
+    renderDocuments(documents);
+  } catch (error) {
+    console.error("Kunde inte ladda dokumenten: ", error);
+  }
 }
 
 async function getAiResponse(question) {
-   if (!question.trim()) {
-      return;
-   }
+  if (!question.trim()) {
+    return;
+  }
 
-   userQuestion.value = "";
+  userQuestion.value = "";
+  addMessage("user", question);
 
-   addMessage("user", question);
+  const bubble = addMessage("assistant", "");
+  bubble.textContent = "Tänker …";
 
-   const waiting = addMessage("assistant", "Tänker …");
+  let full = "";
 
-   try {
-      const response = await authFetch("/api/answer", {
-         method: "POST",
-         headers: {
-            "Content-Type": "application/json",
-         },
-         body: JSON.stringify({
-            message: question,
-         }),
-      });
+  try {
+    const response = await authFetch("/api/answer/stream", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: question,
+      }),
+    });
 
-      if (!response.ok) {
-         throw new Error(`Fel: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Fel: ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error("Streaming stöds inte i den här webbläsaren.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (done) {
+        break;
       }
 
-      const data = await response.json();
+      full += decoder.decode(value, { stream: true });
+      bubble.textContent = full;
+    }
 
-      waiting.remove();
-      addMessage("assistant", data.answer, data.sources);
-   } catch (error) {
-      waiting.remove();
-      addMessage("assistant", "Något gick fel. Försök igen.");
-      console.error("Fetch-fel:", error);
-   }
+    const history = await (await authFetch("/api/history")).json();
+    const last = history.messages?.[history.messages.length - 1];
+
+    renderAssistantMessage(bubble, last?.message ?? full, last?.sources ?? []);
+  } catch (error) {
+    bubble.textContent = "Något gick fel. Försök igen.";
+    console.error("Fetch-fel:", error);
+  }
 }
 
 function addMessage(role, text, sources = []) {
-   const welcome = chatBox.querySelector(".welcome-message");
+  const welcome = chatBox.querySelector(".welcome-message");
 
-   if (welcome) {
-      welcome.remove();
-   }
+  if (welcome) {
+    welcome.remove();
+  }
 
-   const message = document.createElement("div");
-   message.classList.add("chat-message", role === "user" ? "sent" : "received");
+  const message = document.createElement("div");
+  message.classList.add("chat-message", role === "user" ? "sent" : "received");
 
-   if (role === "user") {
-      message.textContent = text;
-   } else {
-      const html = toMarkdownHtml(text, sources);
+  if (role === "user") {
+    message.textContent = text;
+  } else {
+    renderAssistantMessage(message, text, sources);
+  }
 
-      if (html === null) {
-         message.textContent = text;
-      } else {
-         message.innerHTML = html;
-      }
+  chatBox.appendChild(message);
+  chatBox.scrollTop = chatBox.scrollHeight;
 
-      if (sources && sources.length > 0) {
-         message.appendChild(createSources(sources));
-      }
-   }
+  return message;
+}
 
-   chatBox.appendChild(message);
-   chatBox.scrollTop = chatBox.scrollHeight;
+function renderAssistantMessage(message, text, sources) {
+  const html = toMarkdownHtml(text, sources);
 
-   return message;
+  if (html === null) {
+    message.textContent = text;
+  } else {
+    message.innerHTML = html;
+  }
+
+  if (sources && sources.length > 0) {
+    message.appendChild(createSources(sources));
+  }
 }
 
 function toMarkdownHtml(text, sources) {
-   if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
-      return null;
-   }
+  if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+    return null;
+  }
 
-   const linked = text.replace(/\[(\d+)\]/g, (match, number) => {
-      const exists = (sources || []).some(
-         (source) => String(source.number) === number,
-      );
+  const linked = text.replace(/\[(\d+)\]/g, (match, number) => {
+    const exists = (sources || []).some(
+      (source) => String(source.number) === number,
+    );
 
-      return exists ? `[\\[${number}\\]](#kalla-${number})` : match;
-   });
+    return exists ? `[\\[${number}\\]](#kalla-${number})` : match;
+  });
 
-   return DOMPurify.sanitize(marked.parse(linked));
+  return DOMPurify.sanitize(marked.parse(linked));
 }
 
 function createSources(sources) {
-   const list = document.createElement("div");
-   list.classList.add("sources");
+  const list = document.createElement("div");
+  list.classList.add("sources");
 
-   const label = document.createElement("span");
-   label.classList.add("sources-label");
-   label.textContent = "Källor";
-   list.appendChild(label);
+  const label = document.createElement("span");
+  label.classList.add("sources-label");
+  label.textContent = "Källor";
+  list.appendChild(label);
 
-   for (const source of sources) {
-      const link = document.createElement("a");
-      link.classList.add("source");
-      link.id = `kalla-${source.number}`;
-      link.href = documentUrl(source);
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.title = source.snippet || source.title;
-      link.textContent = source.page
-         ? `[${source.number}] ${source.title} (s. ${source.page})`
-         : `[${source.number}] ${source.title}`;
+  for (const source of sources) {
+    const link = document.createElement("a");
+    link.classList.add("source");
+    link.id = `kalla-${source.number}`;
+    link.href = documentUrl(source);
+    link.title = source.snippet || source.title;
+    link.textContent = source.page
+      ? `[${source.number}] ${source.title} (s. ${source.page})`
+      : `[${source.number}] ${source.title}`;
 
-      list.appendChild(link);
-   }
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      openSource(source);
+    });
 
-   return list;
+    list.appendChild(link);
+  }
+
+  return list;
 }
 
 function documentUrl(source) {
-   const url = `/api/documents/${encodeURIComponent(source.title)}`;
+  return `/api/documents/${encodeURIComponent(source.title)}`;
+}
 
-   return source.page ? `${url}#page=${source.page}` : url;
+async function openSource(source) {
+  try {
+    const response = await authFetch(documentUrl(source));
+
+    if (!response.ok) {
+      throw new Error(`Fel: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const target = source.page ? `${url}#page=${source.page}` : url;
+
+    window.open(target, "_blank", "noopener");
+
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    console.error("Kunde inte öppna dokumentet: ", error);
+  }
 }
 
 async function loadHistory() {
-   try {
-      const response = await authFetch("/api/history");
+  try {
+    const response = await authFetch("/api/history");
 
-      if (!response.ok) {
-         return;
-      }
+    if (!response.ok) {
+      return;
+    }
 
-      const chat = await response.json();
+    const chat = await response.json();
 
-      if (!chat.messages || chat.messages.length === 0) {
-         return;
-      }
+    if (!chat.messages || chat.messages.length === 0) {
+      return;
+    }
 
-      chatBox.innerHTML = "";
+    chatBox.innerHTML = "";
 
-      for (const message of chat.messages) {
-         addMessage(message.role, message.message, message.sources);
-      }
-   } catch (error) {
-      console.error("Kunde inte ladda historiken: ", error);
-   }
+    for (const message of chat.messages) {
+      addMessage(message.role, message.message, message.sources);
+    }
+  } catch (error) {
+    console.error("Kunde inte ladda historiken: ", error);
+  }
 }
 
 function renderDocuments(documentList) {
-   documents.innerHTML = "";
+  documents.innerHTML = "";
 
-   documentList.forEach((documentItem) => {
-      const documentElement = document.createElement("div");
-      documentElement.classList.add("document");
+  documentList.forEach((documentItem) => {
+    const documentElement = document.createElement("div");
+    documentElement.classList.add("document");
 
-      documentElement.innerHTML = `
+    documentElement.innerHTML = `
             <div class="document-icon">📄</div>
 
             <div class="document-info">
@@ -347,12 +428,18 @@ function renderDocuments(documentList) {
             </button>
         `;
 
-      documentElement.querySelector(".document-name").textContent =
-         documentItem.name;
+    documentElement.querySelector(".document-name").textContent =
+      documentItem.name;
 
-      documentElement.querySelector(".document-meta").textContent =
-         documentItem.type;
+    documentElement.querySelector(".document-meta").textContent =
+      documentItem.type;
 
+    documentElement
+      .querySelector(".delete-document")
+      .addEventListener("click", () => {
+        documentToDelete = documentItem.name;
+        deleteModal.classList.add("active");
+      });
       documentElement.addEventListener("click", () => {
         modalTitle.textContent = "Radera dokument?";
         modalMessage.textContent ="Vill du verkligen radera detta dokument?";
@@ -367,12 +454,22 @@ function renderDocuments(documentList) {
         deleteModal.classList.add("active");
     });
 
-      documents.appendChild(documentElement);
-   });
+    documents.appendChild(documentElement);
+  });
 }
 
 cancelDelete.addEventListener("click", () => {
   deleteModal.classList.remove("active");
+  documentToDelete = null;
+});
+
+confirmDelete.addEventListener("click", () => {
+  deleteModal.classList.remove("active");
+
+  if (documentToDelete) {
+    deleteDocument(documentToDelete);
+    documentToDelete = null;
+  }
   modalAction = null;
 });
 
@@ -415,5 +512,5 @@ confirmDelete.addEventListener("click", async () => {
 });
 
 if (getToken()) {
-   loadHistory();
+  loadHistory();
 }

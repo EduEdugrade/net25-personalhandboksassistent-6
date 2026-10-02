@@ -22,19 +22,6 @@ namespace Personalhandboksassistent.Repositories
             _containerClient = blobServiceClient.GetBlobContainerClient(containerName);
         }
 
-        public async Task<FileRef> GetInfoAsync(string path, CancellationToken ct)
-        {
-            var blobClient = _containerClient.GetBlobClient(path);
-            var properties = await blobClient.GetPropertiesAsync();
-
-            return new FileRef(
-                  Name: path,
-                  ContentType: properties.Value.ContentType,
-                  Length: properties.Value.ContentLength,
-                  LastModified: properties.Value.LastModified,
-                  ETag: properties.Value.ETag.ToString());
-        }
-
         public async Task<FileData> GetAsync(string path, CancellationToken ct = default)
         {
             var blobClient = _containerClient.GetBlobClient(path);

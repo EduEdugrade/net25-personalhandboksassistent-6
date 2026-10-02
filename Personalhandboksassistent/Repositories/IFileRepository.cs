@@ -4,8 +4,6 @@ namespace Personalhandboksassistent.Repositories
 {
     public interface IFileRepository
     {
-        Task<FileRef> GetInfoAsync(string path, CancellationToken ct);
-
         Task<FileData> GetAsync(string path, CancellationToken ct = default);
 
         Task UploadAsync(string path, Stream content, string contentType, CancellationToken ct = default);
