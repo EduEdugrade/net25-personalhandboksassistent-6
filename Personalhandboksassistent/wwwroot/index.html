@@ -4,10 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Personalhandboksassistenten</title>
-<link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css" />
     <script defer src="js/auth.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"
+    ></script>
     <script defer src="js/app.js"></script>
   </head>
 
@@ -83,29 +89,39 @@
     </div>
 
     <div id="loginModal" class="login-modal">
-        <div class="login-modal-content">
-            <div class="login-header">
-                <h2>Logga in</h2>
-            </div>
-
-            <form id="loginForm">
-                <div class="login-field">
-                    <label for="username">Användarnamn</label>
-                    <input id="username" type="text" placeholder="Användarnamn" autocomplete="username" required>
-                </div>
-
-                <div class="login-field">
-                    <label for="password">Lösenord</label>
-                    <input id="password" type="password" placeholder="Lösenord" autocomplete="current-password" required>
-                </div>
-
-                <button class="login-button" type="submit">Logga in</button>
-
-                <p id="loginError" class="login-error"></p>
-            </form>
+      <div class="login-modal-content">
+        <div class="login-header">
+          <h2>Logga in</h2>
         </div>
+
+        <form id="loginForm">
+          <div class="login-field">
+            <label for="username">Användarnamn</label>
+            <input
+              id="username"
+              type="text"
+              placeholder="Användarnamn"
+              autocomplete="username"
+              required
+            />
+          </div>
+
+          <div class="login-field">
+            <label for="password">Lösenord</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Lösenord"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+
+          <button class="login-button" type="submit">Logga in</button>
+
+          <p id="loginError" class="login-error"></p>
+        </form>
+      </div>
     </div>
-
-</body>
-
+  </body>
 </html>
