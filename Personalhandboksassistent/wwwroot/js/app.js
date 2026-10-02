@@ -117,27 +117,9 @@ function hideLoginModal() {
   document.body.style.overflow = "";
 }
 
-clearHistoryButton.addEventListener("click", async () => {
-  try {
-    const response = await authFetch("/api/history", {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error("Kunde inte rensa chatthistoriken.");
-    }
-
-    const data = await response.json();
-
-    resetChatBox();
-    console.log(data.message);
-  } catch (error) {
-    console.error("Fel vid rensning av historik:", error);
-  }
 clearHistoryButton.addEventListener("click", () => {
   modalTitle.textContent = "Töm chatthistoriken?";
-  modalMessage.textContent =
-    "Vill du verkligen ta bort all din chatthistorik?";
+  modalMessage.textContent = "Vill du verkligen ta bort all din chatthistorik?";
 
   confirmDelete.textContent = "Töm historik";
   confirmDelete.style.background = "#e5484d";
@@ -371,7 +353,7 @@ async function openSource(source) {
 
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
-    const target = source.page ? `${url}#page=${source.page}` : url;
+    const target = source.page && /\.pdf$/i.test(source.title) ? `${url}#page=${source.page}` : url;
 
     window.open(target, "_blank", "noopener");
 
@@ -437,22 +419,18 @@ function renderDocuments(documentList) {
     documentElement
       .querySelector(".delete-document")
       .addEventListener("click", () => {
-        documentToDelete = documentItem.name;
-        deleteModal.classList.add("active");
-      });
-      documentElement.addEventListener("click", () => {
         modalTitle.textContent = "Radera dokument?";
-        modalMessage.textContent ="Vill du verkligen radera detta dokument?";
+        modalMessage.textContent = "Vill du verkligen radera detta dokument?";
         confirmDelete.textContent = "Radera";
         confirmDelete.style.background = "#e5484d";
 
         modalAction = {
-            type: "deleteDocument",
-            id: documentItem.name,
+          type: "deleteDocument",
+          id: documentItem.name,
         };
 
         deleteModal.classList.add("active");
-    });
+      });
 
     documents.appendChild(documentElement);
   });
@@ -460,21 +438,11 @@ function renderDocuments(documentList) {
 
 cancelDelete.addEventListener("click", () => {
   deleteModal.classList.remove("active");
-  documentToDelete = null;
-});
-
-confirmDelete.addEventListener("click", () => {
-  deleteModal.classList.remove("active");
-
-  if (documentToDelete) {
-    deleteDocument(documentToDelete);
-    documentToDelete = null;
-  }
   modalAction = null;
 });
 
 confirmDelete.addEventListener("click", async () => {
-    deleteModal.classList.remove("active");
+  deleteModal.classList.remove("active");
 
   if (modalAction === "clearHistory") {
     try {
