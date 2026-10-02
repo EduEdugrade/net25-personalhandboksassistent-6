@@ -15,7 +15,7 @@ const loginModal = document.getElementById("loginModal");
 const loginForm = document.getElementById("loginForm");
 const loginError = document.getElementById("loginError");
 
-if (!getToken()) { showLoginModal(); }
+if (!getToken()) { showLoginModal(); } else { hideLoginModal(); }
 const isAdmin = getRole() === "admin";
 
 if (isAdmin) {
