@@ -117,9 +117,12 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
             Number = index + 1,
             DocumentId = chunk.DocumentId,
             Title = chunk.Title ?? string.Empty,
-            Page = PageOf(chunk),
+            Page = IsPdf(chunk.Title) ? PageOf(chunk) : null,
             Snippet = SnippetOf(chunk.Content)
         }).ToList();
+
+    private static bool IsPdf(string? title)
+        => title?.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) == true;
 
     private static string? PageOf(DocumentChunk chunk)
     {
