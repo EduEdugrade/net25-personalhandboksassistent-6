@@ -6,6 +6,11 @@ const addDocumentButton = document.querySelector(".add-document");
 const documents = document.querySelector(".documents");
 const clearHistoryButton = document.querySelector(".clearHistory");
 
+const deleteModal = document.getElementById("deleteModal");
+const cancelDelete = document.getElementById("cancelDelete");
+const confirmDelete = document.getElementById("confirmDelete");
+let documentToDelete = null;
+
 const isAdmin = true; // "false" gömmer vänstra dokument panelen
 
 if (isAdmin) {
@@ -31,7 +36,7 @@ clearHistoryButton.addEventListener("click", async () => {
         }
 
         const data = await response.json();
-        
+
         chatBox.innerHTML = `
             <div class="welcome-message">
                 <h2>Hej! Hur kan jag hjälpa dig?</h2>
@@ -87,7 +92,7 @@ async function deleteDocument(id) {
         });
 
         if (!response.ok) throw new Error(`Fel: ${response.status}`);
-        
+
         const result = await response.json();
 
         console.log("Dokument raderat:", result);
@@ -178,11 +183,26 @@ function renderDocuments(documentList) {
 
         documentElement.querySelector(".delete-document")
             .addEventListener("click", () => {
-                deleteDocument(documentItem.name);
+                documentToDelete = documentItem.name;
+                deleteModal.classList.add("active");
             });
 
         documents.appendChild(documentElement);
     })
 }
+
+cancelDelete.addEventListener("click", () => {
+    deleteModal.classList.remove("active");
+    documentToDelete = null;
+});
+
+confirmDelete.addEventListener("click", () => {
+    deleteModal.classList.remove("active");
+
+    if (documentToDelete) {
+        deleteDocument(documentToDelete);
+        documentToDelete = null;
+    }
+});
 
 loadDocuments();

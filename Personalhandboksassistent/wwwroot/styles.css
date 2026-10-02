@@ -125,7 +125,7 @@ body.admin .main {
     align-items: center;
     justify-content: space-between;
 
-    padding: 20px;
+    padding: 1em;
     border-bottom: 1px solid var(--border);
 }
 
@@ -328,7 +328,7 @@ body.admin .main {
 .chat-header {
     display: flex;
     justify-content: flex-end;
-    padding: 1em;
+    padding: 1.14em;
     border-bottom: 1px solid var(--border);
 }
 
@@ -360,8 +360,9 @@ body.admin .main {
 .user-input {
     display: flex;
     gap: 10px;
-    padding: 14px 18px;
-    margin: 0 20px;
+    padding: 10px 10px;
+
+    margin: 1em;
 
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -428,6 +429,44 @@ body.admin .main {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #c5c7ce;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    width: 350px;
+    text-align: center;
+}
+
+.modal-content button {
+    padding: 9px 16px;
+    margin: 10px 5px 0;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#cancelDelete {
+    background: #eee;
+}
+
+#confirmDelete {
+    background: #e5484d;
+    color: white;
 }
 
 @media (max-width: 900px) {
