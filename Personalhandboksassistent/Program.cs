@@ -146,7 +146,9 @@ api.MapGet("/documents/{fileName}", async (string fileName, IFileRepository file
 
 api.MapPost("/answer", async (AnswerRequest request, ChatService chat, HttpContext context) =>
 {
-    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "User";
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrEmpty(userId)) return Results.Unauthorized();
+
     var reply = await chat.AskAsync(userId, request.Message, context.RequestAborted);
 
     return Results.Ok(new
@@ -159,13 +161,17 @@ api.MapPost("/answer", async (AnswerRequest request, ChatService chat, HttpConte
 
 api.MapGet("/history", async (ChatService chat, HttpContext context) =>
 {
-    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "User";
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrEmpty(userId)) return Results.Unauthorized();
+
     return Results.Ok(await chat.GetHistoryAsync(userId, context.RequestAborted));
 });
 
 api.MapDelete("/history", async (ChatService chat, HttpContext context) =>
 {
-    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "User";
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrEmpty(userId)) return Results.Unauthorized();
+
     await chat.ClearAsync(userId, context.RequestAborted);
 
     return Results.Ok(new { message = "Chatthistoriken är rensad." });
