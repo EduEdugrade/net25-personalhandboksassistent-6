@@ -385,4 +385,6 @@ confirmDelete.addEventListener("click", () => {
    }
 });
 
-loadHistory();
+if (getToken()) {
+   loadHistory();
+}
