@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using Personalhandboksassistent.Models;
 using Personalhandboksassistent.Repositories;
@@ -40,6 +42,57 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
 
         var reply = await answer.AnswerAsync(question, chunks, history, cancellationToken);
 
+        return FinalizeReply(reply, chunks);
+    }
+
+    public async IAsyncEnumerable<string> AskStreamAsync(string user, string question, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var chat = await chats.GetAsync(user, cancellationToken);
+        var history = chat.Messages;
+
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            var notFound = ChatMessage.NotFound("Skriv en fråga om personalhandboken.");
+            chat.Messages.Add(new ChatMessage { Role = ChatRoles.User, Message = question });
+            chat.Messages.Add(notFound);
+            chat.UpdatedAt = DateTimeOffset.UtcNow;
+            await chats.SaveAsync(user, chat, cancellationToken);
+            yield return notFound.Message;
+            yield break;
+        }
+
+        var chunks = await search.SearchAsync(question, cancellationToken);
+
+        if (chunks.Count == 0)
+        {
+            var notFound = ChatMessage.NotFound("Jag hittar inte det här i personalhandboken. Kontakta HR om du är osäker.");
+            chat.Messages.Add(new ChatMessage { Role = ChatRoles.User, Message = question });
+            chat.Messages.Add(notFound);
+            chat.UpdatedAt = DateTimeOffset.UtcNow;
+            await chats.SaveAsync(user, chat, cancellationToken);
+            yield return notFound.Message;
+            yield break;
+        }
+
+        var full = new StringBuilder();
+
+        await foreach (var delta in answer.AnswerStreamAsync(question, chunks, history, cancellationToken))
+        {
+            full.Append(delta);
+            yield return delta;
+        }
+
+        var final = FinalizeReply(full.ToString().Trim(), chunks);
+
+        chat.Messages.Add(new ChatMessage { Role = ChatRoles.User, Message = question });
+        chat.Messages.Add(final);
+        chat.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await chats.SaveAsync(user, chat, cancellationToken);
+    }
+
+    private static ChatMessage FinalizeReply(string reply, List<DocumentChunk> chunks)
+    {
         if (reply.StartsWith("SAKNAS", StringComparison.OrdinalIgnoreCase))
         {
             return ChatMessage.NotFound("Jag hittar inte det här i personalhandboken. Kontakta HR om du är osäker.");
@@ -52,7 +105,8 @@ public class ChatService(SearchService search, AnswerService answer, IChatReposi
 
         if (reply.StartsWith("OKLART", StringComparison.OrdinalIgnoreCase))
         {
-            var clarification = reply[(reply.IndexOf(':') + 1)..].Trim();
+            var colon = reply.IndexOf(':');
+            var clarification = colon >= 0 ? reply[(colon + 1)..].Trim() : string.Empty;
 
             return ChatMessage.NotFound(clarification.Length == 0
                 ? "Jag förstår inte frågan. Kan du formulera om den?"
