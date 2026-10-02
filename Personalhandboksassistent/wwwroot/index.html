@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="sv">
 
@@ -76,6 +77,30 @@
 
             <button id="cancelDelete">Avbryt</button>
             <button id="confirmDelete">Radera</button>
+        </div>
+    </div>
+
+    <div id="loginModal" class="login-modal">
+        <div class="login-modal-content">
+            <div class="login-header">
+                <h2>Logga in</h2>
+            </div>
+
+            <form id="loginForm">
+                <div class="login-field">
+                    <label for="username">Användarnamn</label>
+                    <input id="username" type="text" placeholder="Användarnamn" autocomplete="username" required>
+                </div>
+
+                <div class="login-field">
+                    <label for="password">Lösenord</label>
+                    <input id="password" type="password" placeholder="Lösenord" autocomplete="current-password" required>
+                </div>
+
+                <button class="login-button" type="submit">Logga in</button>
+
+                <p id="loginError" class="login-error"></p>
+            </form>
         </div>
     </div>
 
