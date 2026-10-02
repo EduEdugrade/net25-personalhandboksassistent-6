@@ -15,17 +15,21 @@ const loginModal = document.getElementById("loginModal");
 const loginForm = document.getElementById("loginForm");
 const loginError = document.getElementById("loginError");
 
-let isAdmin = false; // "false" gömmer vänstra dokument panelen
+if (!getToken()) { showLoginModal(); }
+const isAdmin = getRole() === "admin";
+
+if (isAdmin) {
+    document.body.classList.add("admin");
+    loadDocuments();
+}
 
 submitButton.addEventListener("click", () => {
     getAiResponse(userQuestion.value);
 });
 
 logoutButton.addEventListener("click", () => {
-    //Todo: ta bort jwt token?
-    isAdmin = false;
+    clearSession();
     document.body.classList.remove("admin");
-    
     showLoginModal();
 });
 
@@ -58,11 +62,10 @@ loginForm.addEventListener("submit", async (event) => {
 
         const data = await response.json();
 
+        setSession(data.token, data.user);
         hideLoginModal();
-        console.log("Inloggad som:", data.user);
 
         if (data.user.role === "admin") {
-            isAdmin = true;
             document.body.classList.add("admin");
             loadDocuments();
         }
@@ -83,7 +86,7 @@ function hideLoginModal() {
 
 clearHistoryButton.addEventListener("click", async () => {
     try {
-        const response = await fetch("/api/history", {
+        const response = await authFetch("/api/history", {
             method: "DELETE"
         });
 
@@ -125,7 +128,7 @@ async function addDocument(file) {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("/api/addFile", {
+        const response = await authFetch("/api/addFile", {
             method: "POST",
             body: formData
         });
@@ -143,7 +146,7 @@ async function addDocument(file) {
 
 async function deleteDocument(id) {
     try {
-        const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
+        const response = await authFetch(`/api/documents/${encodeURIComponent(id)}`, {
             method: "DELETE"
         });
 
@@ -160,7 +163,7 @@ async function deleteDocument(id) {
 
 async function loadDocuments() {
     try {
-        const response = await fetch("/api/documents");
+        const response = await authFetch("/api/documents");
 
         if (!response.ok) {
             throw new Error("Kunde inte hämta dokumenten");
@@ -175,7 +178,7 @@ async function loadDocuments() {
 
 async function getAiResponse(question) {
     try {
-        const response = await fetch("/api/answer", {
+        const response = await authFetch("/api/answer", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

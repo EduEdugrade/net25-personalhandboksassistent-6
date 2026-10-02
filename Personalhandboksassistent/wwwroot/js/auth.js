@@ -48,7 +48,7 @@ async function authFetch(url, options = {}) {
 
     if (response.status === 401) {
         clearSession();
-        location.replace("/login.html");
+        location.reload();
     }
 
     if (response.status === 403) {
