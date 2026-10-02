@@ -127,9 +127,6 @@ admin.MapDelete("/documents/{fileName}", async (string fileName, DocumentService
     }
 });
 
-admin.MapPost("/index/cleanup", async (DocumentService documents, HttpContext context) =>
-    Results.Ok(new { removedChunks = await documents.CleanOrphansAsync(context.RequestAborted) }));
-
 api.MapGet("/documents/{fileName}", async (string fileName, IFileRepository files, HttpContext context) =>
 {
     try
@@ -144,19 +141,24 @@ api.MapGet("/documents/{fileName}", async (string fileName, IFileRepository file
     }
 });
 
-api.MapPost("/answer", async (AnswerRequest request, ChatService chat, HttpContext context) =>
+api.MapPost("/answer/stream", async (AnswerRequest request, ChatService chat, HttpContext context) =>
 {
     var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    if (string.IsNullOrEmpty(userId)) return Results.Unauthorized();
 
-    var reply = await chat.AskAsync(userId, request.Message, context.RequestAborted);
-
-    return Results.Ok(new
+    if (string.IsNullOrEmpty(userId))
     {
-        answer = reply.Message,
-        reply.IsFound,
-        reply.Sources
-    });
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return;
+    }
+
+    context.Response.ContentType = "text/plain; charset=utf-8";
+    context.Response.Headers["Cache-Control"] = "no-cache";
+
+    await foreach (var delta in chat.AskStreamAsync(userId, request.Message, context.RequestAborted))
+    {
+        await context.Response.WriteAsync(delta, context.RequestAborted);
+        await context.Response.Body.FlushAsync(context.RequestAborted);
+    }
 });
 
 api.MapGet("/history", async (ChatService chat, HttpContext context) =>
