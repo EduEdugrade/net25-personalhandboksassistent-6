@@ -1,4 +1,6 @@
+
 using Azure;
+
 using DotNetEnv;
 using Personalhandboksassistent.Repositories;
 using Personalhandboksassistent.Services;
@@ -32,7 +34,8 @@ builder.Services
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin")));
 
 builder.Services.AddSingleton<SearchService>();
 builder.Services.AddSingleton<AnswerService>();
@@ -86,24 +89,14 @@ app.MapPost("/login", (LoginRequest req, JwtTokenService tokenService) =>
     });
 });
 
-app.MapGet("/api/documents", async (DocumentService documents, HttpContext context) =>
+var api = app.MapGroup("/api").RequireAuthorization();
+
+var admin = api.MapGroup("").RequireAuthorization("AdminOnly");
+
+admin.MapGet("/documents", async (DocumentService documents, HttpContext context) =>
     Results.Ok(await documents.ListAsync(context.RequestAborted)));
 
-app.MapGet("/api/documents/{fileName}", async (string fileName, IFileRepository files, HttpContext context) =>
-{
-    try
-    {
-        var file = await files.GetAsync(fileName, context.RequestAborted);
-
-        return Results.File(file.Content, file.ContentType, enableRangeProcessing: true);
-    }
-    catch (RequestFailedException ex) when (ex.Status == 404)
-    {
-        return Results.NotFound(new { message = "Dokumentet finns inte." });
-    }
-});
-
-app.MapPost("/api/addFile", async (IFormFile file, DocumentService documents, HttpContext context) =>
+admin.MapPost("/addFile", async (IFormFile file, DocumentService documents, HttpContext context) =>
 {
     if (!DocumentRules.IsAllowed(file.FileName))
     {
@@ -120,7 +113,7 @@ app.MapPost("/api/addFile", async (IFormFile file, DocumentService documents, Ht
     return Results.Ok(new { name = file.FileName, oldChunksRemoved = result.OldChunksRemoved, indexed = result.Indexed });
 }).DisableAntiforgery();
 
-app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentService documents, HttpContext context) =>
+admin.MapDelete("/documents/{fileName}", async (string fileName, DocumentService documents, HttpContext context) =>
 {
     try
     {
@@ -134,12 +127,27 @@ app.MapDelete("/api/documents/{fileName}", async (string fileName, DocumentServi
     }
 });
 
-app.MapPost("/api/index/cleanup", async (DocumentService documents, HttpContext context) =>
+admin.MapPost("/index/cleanup", async (DocumentService documents, HttpContext context) =>
     Results.Ok(new { removedChunks = await documents.CleanOrphansAsync(context.RequestAborted) }));
 
-app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat, HttpContext context) =>
+api.MapGet("/documents/{fileName}", async (string fileName, IFileRepository files, HttpContext context) =>
 {
-    var reply = await chat.AskAsync("User", request.Message, context.RequestAborted);
+    try
+    {
+        var file = await files.GetAsync(fileName, context.RequestAborted);
+
+        return Results.File(file.Content, file.ContentType, enableRangeProcessing: true);
+    }
+    catch (RequestFailedException ex) when (ex.Status == 404)
+    {
+        return Results.NotFound(new { message = "Dokumentet finns inte." });
+    }
+});
+
+api.MapPost("/answer", async (AnswerRequest request, ChatService chat, HttpContext context) =>
+{
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "User";
+    var reply = await chat.AskAsync(userId, request.Message, context.RequestAborted);
 
     return Results.Ok(new
     {
@@ -149,12 +157,16 @@ app.MapPost("/api/answer", async (AnswerRequest request, ChatService chat, HttpC
     });
 });
 
-app.MapGet("/api/history", async (ChatService chat, HttpContext context) =>
-    Results.Ok(await chat.GetHistoryAsync("User", context.RequestAborted)));
-
-app.MapDelete("/api/history", async (ChatService chat, HttpContext context) =>
+api.MapGet("/history", async (ChatService chat, HttpContext context) =>
 {
-    await chat.ClearAsync("User", context.RequestAborted);
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "User";
+    return Results.Ok(await chat.GetHistoryAsync(userId, context.RequestAborted));
+});
+
+api.MapDelete("/history", async (ChatService chat, HttpContext context) =>
+{
+    var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "User";
+    await chat.ClearAsync(userId, context.RequestAborted);
 
     return Results.Ok(new { message = "Chatthistoriken är rensad." });
 });

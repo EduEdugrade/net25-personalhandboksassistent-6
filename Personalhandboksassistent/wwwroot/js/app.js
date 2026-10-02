@@ -11,39 +11,98 @@ const cancelDelete = document.getElementById("cancelDelete");
 const confirmDelete = document.getElementById("confirmDelete");
 let documentToDelete = null;
 
-const isAdmin = true; // "false" gömmer vänstra dokument panelen
+if (!getToken()) {
+   showLoginModal();
+} else {
+   hideLoginModal();
+}
+const isAdmin = getRole() === "admin";
 
 if (isAdmin) {
-  document.body.classList.add("admin");
+   document.body.classList.add("admin");
+   loadDocuments();
 }
 
 submitButton.addEventListener("click", () => {
-  getAiResponse(userQuestion.value);
+   getAiResponse(userQuestion.value);
 });
 
 userQuestion.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    getAiResponse(userQuestion.value);
-  }
+   if (event.key === "Enter") {
+      getAiResponse(userQuestion.value);
+   }
 });
 
 logoutButton.addEventListener("click", () => {
-  //Todo: Skicka tillbaka användaren till loginsidan
+   clearSession();
+   document.body.classList.remove("admin");
+   showLoginModal();
 });
 
+loginForm.addEventListener("submit", async (event) => {
+   event.preventDefault();
+
+   const username = document.getElementById("username").value.trim();
+   const password = document.getElementById("password").value;
+   loginError.textContent = "";
+
+   try {
+      const response = await fetch("/login", {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         body: JSON.stringify({
+            username,
+            password,
+         }),
+      });
+
+      if (!response.ok) {
+         if (response.status === 401) {
+            throw new Error("Fel användarnamn eller lösenord.");
+         }
+
+         throw new Error("Kunde inte logga in.");
+      }
+
+      const data = await response.json();
+
+      setSession(data.token, data.user);
+      hideLoginModal();
+
+      if (data.user.role === "admin") {
+         document.body.classList.add("admin");
+         loadDocuments();
+      }
+   } catch (error) {
+      loginError.textContent = error.message;
+   }
+});
+
+function showLoginModal() {
+   loginModal.classList.remove("hidden");
+   document.body.style.overflow = "hidden";
+}
+
+function hideLoginModal() {
+   loginModal.classList.add("hidden");
+   document.body.style.overflow = "";
+}
+
 clearHistoryButton.addEventListener("click", async () => {
-  try {
-    const response = await fetch("/api/history", {
-      method: "DELETE",
-    });
+   try {
+      const response = await authFetch("/api/history", {
+         method: "DELETE",
+      });
 
-    if (!response.ok) {
-      throw new Error("Kunde inte rensa chatthistoriken.");
-    }
+      if (!response.ok) {
+         throw new Error("Kunde inte rensa chatthistoriken.");
+      }
 
-    const data = await response.json();
+      const data = await response.json();
 
-    chatBox.innerHTML = `
+      chatBox.innerHTML = `
             <div class="welcome-message">
                 <h2>Hej! Hur kan jag hjälpa dig?</h2>
                 <p>
@@ -52,231 +111,234 @@ clearHistoryButton.addEventListener("click", async () => {
                 </p>
             </div>
         `;
-    console.log(data.message);
-  } catch (error) {
-    console.error("Fel vid rensning av historik:", error);
-  }
+      console.log(data.message);
+   } catch (error) {
+      console.error("Fel vid rensning av historik:", error);
+   }
 });
 
 addDocumentButton.addEventListener("click", () => {
-  const fileInput = document.getElementById("fileInput");
+   const fileInput = document.getElementById("fileInput");
 
-  fileInput.addEventListener(
-    "change",
-    async (event) => {
-      const file = event.target.files[0];
+   fileInput.addEventListener(
+      "change",
+      async (event) => {
+         const file = event.target.files[0];
 
-      if (file) await addDocument(file);
-    },
-    { once: true },
-  );
+         if (file) await addDocument(file);
+      },
+      { once: true },
+   );
 
-  fileInput.click();
+   fileInput.click();
 });
 
 async function addDocument(file) {
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
+   try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const response = await fetch("/api/addFile", {
-      method: "POST",
-      body: formData,
-    });
+      const response = await authFetch("/api/addFile", {
+         method: "POST",
+         body: formData,
+      });
 
-    if (!response.ok) throw new Error("Kunde inte ladda upp filen");
+      if (!response.ok) throw new Error("Kunde inte ladda upp filen");
 
-    const data = await response.json();
-    console.log("Uppladdning lyckades!", data);
+      const data = await response.json();
+      console.log("Uppladdning lyckades!", data);
 
-    await loadDocuments();
-  } catch (error) {
-    console.error("Fel vid tillägg av dokument:", error);
-  }
+      await loadDocuments();
+   } catch (error) {
+      console.error("Fel vid tillägg av dokument:", error);
+   }
 }
 
 async function deleteDocument(id) {
-  try {
-    const response = await fetch(`/api/documents/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
+   try {
+      const response = await authFetch(
+         `/api/documents/${encodeURIComponent(id)}`,
+         {
+            method: "DELETE",
+         },
+      );
 
-    if (!response.ok) throw new Error(`Fel: ${response.status}`);
+      if (!response.ok) throw new Error(`Fel: ${response.status}`);
 
-    const result = await response.json();
+      const result = await response.json();
 
-    console.log("Dokument raderat:", result);
-    loadDocuments();
-  } catch (error) {
-    console.error("Kunde inte radera dokumentet: ", error);
-  }
+      console.log("Dokument raderat:", result);
+      loadDocuments();
+   } catch (error) {
+      console.error("Kunde inte radera dokumentet: ", error);
+   }
 }
 
 async function loadDocuments() {
-  try {
-    const response = await fetch("/api/documents");
+   try {
+      const response = await authFetch("/api/documents");
 
-    if (!response.ok) {
-      throw new Error("Kunde inte hämta dokumenten");
-    }
+      if (!response.ok) {
+         throw new Error("Kunde inte hämta dokumenten");
+      }
 
-    const documents = await response.json();
-    renderDocuments(documents);
-  } catch (error) {
-    console.error("Kunde inte ladda dokumenten: ", error);
-  }
+      const documents = await response.json();
+      renderDocuments(documents);
+   } catch (error) {
+      console.error("Kunde inte ladda dokumenten: ", error);
+   }
 }
 
 async function getAiResponse(question) {
-  if (!question.trim()) {
-    return;
-  }
+   if (!question.trim()) {
+      return;
+   }
 
-  userQuestion.value = "";
+   userQuestion.value = "";
 
-  addMessage("user", question);
+   addMessage("user", question);
 
-  const waiting = addMessage("assistant", "Tänker …");
+   const waiting = addMessage("assistant", "Tänker …");
 
-  try {
-    const response = await fetch("/api/answer", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: question,
-      }),
-    });
+   try {
+      const response = await authFetch("/api/answer", {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         body: JSON.stringify({
+            message: question,
+         }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`Fel: ${response.status}`);
-    }
+      if (!response.ok) {
+         throw new Error(`Fel: ${response.status}`);
+      }
 
-    const data = await response.json();
+      const data = await response.json();
 
-    waiting.remove();
-    addMessage("assistant", data.answer, data.sources);
-  } catch (error) {
-    waiting.remove();
-    addMessage("assistant", "Något gick fel. Försök igen.");
-    console.error("Fetch-fel:", error);
-  }
+      waiting.remove();
+      addMessage("assistant", data.answer, data.sources);
+   } catch (error) {
+      waiting.remove();
+      addMessage("assistant", "Något gick fel. Försök igen.");
+      console.error("Fetch-fel:", error);
+   }
 }
 
 function addMessage(role, text, sources = []) {
-  const welcome = chatBox.querySelector(".welcome-message");
+   const welcome = chatBox.querySelector(".welcome-message");
 
-  if (welcome) {
-    welcome.remove();
-  }
+   if (welcome) {
+      welcome.remove();
+   }
 
-  const message = document.createElement("div");
-  message.classList.add("chat-message", role === "user" ? "sent" : "received");
+   const message = document.createElement("div");
+   message.classList.add("chat-message", role === "user" ? "sent" : "received");
 
-  if (role === "user") {
-    message.textContent = text;
-  } else {
-    const html = toMarkdownHtml(text, sources);
-
-    if (html === null) {
+   if (role === "user") {
       message.textContent = text;
-    } else {
-      message.innerHTML = html;
-    }
+   } else {
+      const html = toMarkdownHtml(text, sources);
 
-    if (sources && sources.length > 0) {
-      message.appendChild(createSources(sources));
-    }
-  }
+      if (html === null) {
+         message.textContent = text;
+      } else {
+         message.innerHTML = html;
+      }
 
-  chatBox.appendChild(message);
-  chatBox.scrollTop = chatBox.scrollHeight;
+      if (sources && sources.length > 0) {
+         message.appendChild(createSources(sources));
+      }
+   }
 
-  return message;
+   chatBox.appendChild(message);
+   chatBox.scrollTop = chatBox.scrollHeight;
+
+   return message;
 }
 
 function toMarkdownHtml(text, sources) {
-  if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
-    return null;
-  }
+   if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+      return null;
+   }
 
-  const linked = text.replace(/\[(\d+)\]/g, (match, number) => {
-    const exists = (sources || []).some(
-      (source) => String(source.number) === number,
-    );
+   const linked = text.replace(/\[(\d+)\]/g, (match, number) => {
+      const exists = (sources || []).some(
+         (source) => String(source.number) === number,
+      );
 
-    return exists ? `[\\[${number}\\]](#kalla-${number})` : match;
-  });
+      return exists ? `[\\[${number}\\]](#kalla-${number})` : match;
+   });
 
-  return DOMPurify.sanitize(marked.parse(linked));
+   return DOMPurify.sanitize(marked.parse(linked));
 }
 
 function createSources(sources) {
-  const list = document.createElement("div");
-  list.classList.add("sources");
+   const list = document.createElement("div");
+   list.classList.add("sources");
 
-  const label = document.createElement("span");
-  label.classList.add("sources-label");
-  label.textContent = "Källor";
-  list.appendChild(label);
+   const label = document.createElement("span");
+   label.classList.add("sources-label");
+   label.textContent = "Källor";
+   list.appendChild(label);
 
-  for (const source of sources) {
-    const link = document.createElement("a");
-    link.classList.add("source");
-    link.id = `kalla-${source.number}`;
-    link.href = documentUrl(source);
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.title = source.snippet || source.title;
-    link.textContent = source.page
-      ? `[${source.number}] ${source.title} (s. ${source.page})`
-      : `[${source.number}] ${source.title}`;
+   for (const source of sources) {
+      const link = document.createElement("a");
+      link.classList.add("source");
+      link.id = `kalla-${source.number}`;
+      link.href = documentUrl(source);
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.title = source.snippet || source.title;
+      link.textContent = source.page
+         ? `[${source.number}] ${source.title} (s. ${source.page})`
+         : `[${source.number}] ${source.title}`;
 
-    list.appendChild(link);
-  }
+      list.appendChild(link);
+   }
 
-  return list;
+   return list;
 }
 
 function documentUrl(source) {
-  const url = `/api/documents/${encodeURIComponent(source.title)}`;
+   const url = `/api/documents/${encodeURIComponent(source.title)}`;
 
-  return source.page ? `${url}#page=${source.page}` : url;
+   return source.page ? `${url}#page=${source.page}` : url;
 }
 
 async function loadHistory() {
-  try {
-    const response = await fetch("/api/history");
+   try {
+      const response = await authFetch("/api/history");
 
-    if (!response.ok) {
-      return;
-    }
+      if (!response.ok) {
+         return;
+      }
 
-    const chat = await response.json();
+      const chat = await response.json();
 
-    if (!chat.messages || chat.messages.length === 0) {
-      return;
-    }
+      if (!chat.messages || chat.messages.length === 0) {
+         return;
+      }
 
-    chatBox.innerHTML = "";
+      chatBox.innerHTML = "";
 
-    for (const message of chat.messages) {
-      addMessage(message.role, message.message, message.sources);
-    }
-  } catch (error) {
-    console.error("Kunde inte ladda historiken: ", error);
-  }
+      for (const message of chat.messages) {
+         addMessage(message.role, message.message, message.sources);
+      }
+   } catch (error) {
+      console.error("Kunde inte ladda historiken: ", error);
+   }
 }
 
 function renderDocuments(documentList) {
-  documents.innerHTML = "";
+   documents.innerHTML = "";
 
-  documentList.forEach((documentItem) => {
-    const documentElement = document.createElement("div");
-    documentElement.classList.add("document");
+   documentList.forEach((documentItem) => {
+      const documentElement = document.createElement("div");
+      documentElement.classList.add("document");
 
-    documentElement.innerHTML = `
+      documentElement.innerHTML = `
             <div class="document-icon">📄</div>
 
             <div class="document-info">
@@ -284,44 +346,43 @@ function renderDocuments(documentList) {
                 <span class="document-meta"></span>
             </div>
 
-            <button 
-                class="delete-document" 
+            <button
+                class="delete-document"
                 type="button"
                 title="Ta bort dokument">
                 x
             </button>
         `;
 
-    documentElement.querySelector(".document-name").textContent =
-      documentItem.name;
+      documentElement.querySelector(".document-name").textContent =
+         documentItem.name;
 
-    documentElement.querySelector(".document-meta").textContent =
-      documentItem.type;
+      documentElement.querySelector(".document-meta").textContent =
+         documentItem.type;
 
-    documentElement
-      .querySelector(".delete-document")
-      .addEventListener("click", () => {
-        documentToDelete = documentItem.name;
-        deleteModal.classList.add("active");
-      });
+      documentElement
+         .querySelector(".delete-document")
+         .addEventListener("click", () => {
+            documentToDelete = documentItem.name;
+            deleteModal.classList.add("active");
+         });
 
-    documents.appendChild(documentElement);
-  });
+      documents.appendChild(documentElement);
+   });
 }
 
 cancelDelete.addEventListener("click", () => {
-  deleteModal.classList.remove("active");
-  documentToDelete = null;
+   deleteModal.classList.remove("active");
+   documentToDelete = null;
 });
 
 confirmDelete.addEventListener("click", () => {
-  deleteModal.classList.remove("active");
+   deleteModal.classList.remove("active");
 
-  if (documentToDelete) {
-    deleteDocument(documentToDelete);
-    documentToDelete = null;
-  }
+   if (documentToDelete) {
+      deleteDocument(documentToDelete);
+      documentToDelete = null;
+   }
 });
 
-loadDocuments();
 loadHistory();
